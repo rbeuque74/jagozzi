@@ -9,4 +9,5 @@ after_script:
   - gometalinter
 
 after_success:
+  - rm -v jagozzi
   - test -n "$TRAVIS_TAG" && curl -sL https://git.io/goreleaser | bash
