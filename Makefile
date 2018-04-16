@@ -1,2 +1,3 @@
 all:
+	go get -v ./...
 	go build -o jagozzi main.go utils.go instance.go
