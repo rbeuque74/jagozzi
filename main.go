@@ -1,0 +1,140 @@
+package main
+
+import (
+	"context"
+	"flag"
+	"os"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/rbeuque74/jagozzi/config"
+	"github.com/rbeuque74/jagozzi/plugins"
+	_ "github.com/rbeuque74/jagozzi/plugins/command"
+	_ "github.com/rbeuque74/jagozzi/plugins/http"
+	_ "github.com/rbeuque74/jagozzi/plugins/marathon"
+	_ "github.com/rbeuque74/jagozzi/plugins/processes"
+	_ "github.com/rbeuque74/jagozzi/plugins/supervisor"
+	log "github.com/sirupsen/logrus"
+)
+
+var (
+	configFile = flag.String("cfg", "./jagozzi.yml", "path to config file")
+	logLevel   = flag.String("level", "info", "verbosity level for application logs")
+)
+
+func main() {
+	flag.Parse()
+	if logLevel != nil {
+		switch strings.ToLower(*logLevel) {
+		case "info":
+			log.SetLevel(log.InfoLevel)
+		case "warn":
+			log.SetLevel(log.WarnLevel)
+		case "debug":
+			log.SetLevel(log.DebugLevel)
+		case "error":
+			log.SetLevel(log.ErrorLevel)
+		case "fatal":
+			log.SetLevel(log.FatalLevel)
+		case "panic":
+			log.SetLevel(log.PanicLevel)
+		}
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go exitSignalHandling(cancel)
+
+	cfg, err := config.Load(*configFile)
+	if err != nil {
+		log.Fatal(err)
+	} else if ctx.Err() != nil {
+		log.Info("main context already closed")
+		os.Exit(0)
+	}
+
+	yag, err := Load(*cfg)
+	if err != nil {
+		log.Fatal(err)
+	} else if ctx.Err() != nil {
+		log.Info("main context already closed")
+		os.Exit(0)
+	}
+
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		for {
+			select {
+			case err := <-yag.consumerErrorChannel:
+				if err != nil {
+					log.Errorf("consumer: problem while sending to NSCA: %s", err)
+				} else {
+					log.Info("consumer: message sent!")
+				}
+			case <-ctx.Done():
+				log.Debug("consumer: stop listening for NSCA errors")
+				wg.Done()
+				return
+			}
+		}
+	}()
+
+	yag.runMainLoop(ctx, &wg)
+	log.Info("Received exit signal; stopping jagozzi")
+	log.Debug("main: waiting for all goroutines")
+	wg.Wait()
+	yag.Unload()
+	log.Debug("main: all goroutines exited, exiting main")
+}
+
+func (yag Jagozzi) runMainLoop(ctx context.Context, wg *sync.WaitGroup) {
+	ticker := time.NewTicker(yag.cfg.Periodicity)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case t := <-ticker.C:
+			log.Println("Running checkers: ", t)
+			loopCtx, cancelFunc := context.WithTimeout(ctx, yag.cfg.Periodicity*time.Duration(2))
+			defer cancelFunc()
+			for _, checker := range yag.Checkers() {
+				go yag.runChecker(loopCtx, checker, wg)
+			}
+		case <-ctx.Done():
+			log.Println("main context closed")
+			return
+		}
+	}
+}
+
+func (yag Jagozzi) runChecker(ctx context.Context, checker plugins.Checker, wg *sync.WaitGroup) {
+	wg.Add(1)
+	defer wg.Done()
+	result, err := checker.Run(ctx)
+	if err == nil {
+		log.Infof("checker: result was %q", result)
+		yag.SendConsumers(ctx, plugins.Result{
+			Status:  plugins.STATE_OK,
+			Message: result,
+			Checker: checker,
+		})
+		return
+	}
+
+	if ctx.Err() != nil && ctx.Err() == context.Canceled {
+		log.Println("jagozzi: context cancelled: ", err)
+		return
+	} else if ctx.Err() != nil && ctx.Err() == context.DeadlineExceeded {
+		log.Println("jagozzi: context timed out: ", err)
+		return
+	}
+
+	log.Errorf("checker: %s", err)
+	yag.SendConsumers(ctx, plugins.Result{
+		Status:  plugins.STATE_CRITICAL,
+		Message: err.Error(),
+		Checker: checker,
+	})
+}
