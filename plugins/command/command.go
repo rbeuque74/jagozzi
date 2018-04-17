@@ -34,11 +34,26 @@ func (c CommandChecker) ServiceName() string {
 	return c.cfg.Name
 }
 
+type result struct {
+	Cfg    commandConfig
+	Cmd    exec.Cmd
+	Stdout string
+	Stderr string
+}
+
 func (c *CommandChecker) Run(ctx context.Context) (string, error) {
 	cmd := exec.Command(c.command, c.args...)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
+
+	model := result{
+		Cfg:    c.cfg,
+		Cmd:    *cmd,
+		Stdout: "",
+		Stderr: "",
+	}
+
 	if err := cmd.Start(); err != nil {
 		log.Warn("command: can't start")
 		return "KO", err
@@ -47,17 +62,23 @@ func (c *CommandChecker) Run(ctx context.Context) (string, error) {
 	go func() { done <- cmd.Wait() }()
 	select {
 	case <-ctx.Done():
+		model.Stderr = stderr.String()
+		model.Stdout = stdout.String()
+
 		if err := cmd.Process.Kill(); err != nil {
-			return "KO", fmt.Errorf("command: context expired, kill pid %q failed: %s", cmd.Process.Pid, err)
+			return "KO", plugins.RenderError(c.cfg.template, model, fmt.Errorf("command: context expired, kill pid %q failed: %s", cmd.Process.Pid, err))
 		}
-		return "KO", errors.New("command: context finished before command finished execution")
+		return "KO", plugins.RenderError(c.cfg.template, model, errors.New("command: context finished before command finished execution"))
 	case err := <-done:
+		model.Stderr = stderr.String()
+		model.Stdout = stdout.String()
+
 		if typedErr, ok := err.(*exec.ExitError); ok {
-			return "KO", fmt.Errorf("%s: %s", typedErr, string(stderr.String()))
+			return "KO", plugins.RenderError(c.cfg.template, model, fmt.Errorf("%s: %s", typedErr, model.Stderr))
 		} else if err != nil {
-			return "KO", fmt.Errorf("%s: %s", err, string(stderr.String()))
+			return "KO", plugins.RenderError(c.cfg.template, model, fmt.Errorf("%s: %s", err, model.Stderr))
 		} else {
-			return string(stdout.String()), nil
+			return model.Stdout, nil
 		}
 	}
 }

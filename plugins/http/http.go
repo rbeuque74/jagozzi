@@ -30,6 +30,15 @@ func (c HTTPChecker) ServiceName() string {
 	return c.cfg.Name
 }
 
+// result is the model used by HTTP checker to apply template on
+type result struct {
+	Cfg         httpConfig
+	Result      plugins.StatusEnum
+	Response    http.Response
+	Request     http.Request
+	ElapsedTime time.Duration
+}
+
 func (c *HTTPChecker) Run(ctx context.Context) (string, error) {
 	httpCtx, cancel := context.WithTimeout(ctx, c.cfg.Timeout)
 	defer cancel()
@@ -46,15 +55,25 @@ func (c *HTTPChecker) Run(ctx context.Context) (string, error) {
 		return "", err
 	}
 
-	if resp.StatusCode != int(c.cfg.Code) {
-		return "", fmt.Errorf("invalid status code: %d instead of %d", resp.StatusCode, c.cfg.Code)
+	elapsedTime := time.Since(duration).Round(time.Millisecond)
+
+	// TODO: remove sensitive information from request such as credentials
+	model := result{
+		Cfg:         c.cfg,
+		Result:      plugins.STATE_CRITICAL,
+		Response:    *resp,
+		Request:     *req,
+		ElapsedTime: elapsedTime,
 	}
 
-	elapsedTime := time.Since(duration)
+	if resp.StatusCode != int(c.cfg.Code) {
+		return "", plugins.RenderError(c.cfg.template, model, fmt.Errorf("invalid status code: %d instead of %d", resp.StatusCode, c.cfg.Code))
+	}
+
 	if elapsedTime > c.cfg.Critical {
-		return "", fmt.Errorf("critical")
+		return "", plugins.RenderError(c.cfg.template, model, fmt.Errorf("critical timeout: request took %s instead of %s", elapsedTime, c.cfg.Critical.Round(time.Millisecond)))
 	} else if elapsedTime > c.cfg.Warning {
-		return "", fmt.Errorf("warning")
+		return "", plugins.RenderError(c.cfg.template, model, fmt.Errorf("timeout: request took %s instead of %s", elapsedTime, c.cfg.Warning.Round(time.Millisecond)))
 	}
 	return "OK", nil
 }

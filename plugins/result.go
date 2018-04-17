@@ -1,6 +1,10 @@
 package plugins
 
 import (
+	"bytes"
+	"fmt"
+	"text/template"
+
 	"github.com/syncbak-git/nsca"
 )
 
@@ -16,6 +20,8 @@ const (
 	STATE_CRITICAL StatusEnum = nsca.STATE_CRITICAL
 	// STATE_UNKNOWN represents a service in an unsure status
 	STATE_UNKNOWN StatusEnum = nsca.STATE_UNKNOWN
+
+	errFailedTemplate = "unable to apply jagozzi template: %s ; %s"
 )
 
 // Result is the structure that represents a checker result
@@ -26,4 +32,16 @@ type Result struct {
 	Message string
 	// Checker is the checker that returns this result
 	Checker Checker
+}
+
+// RenderError allow personalised rendering if checker contains a template
+func RenderError(tmpl *template.Template, model interface{}, originalError error) error {
+	if tmpl == nil {
+		return originalError
+	}
+	buf := new(bytes.Buffer)
+	if err := tmpl.Execute(buf, model); err != nil {
+		return fmt.Errorf(errFailedTemplate, err, originalError)
+	}
+	return fmt.Errorf(buf.String())
 }
