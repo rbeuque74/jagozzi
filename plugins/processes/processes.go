@@ -45,7 +45,6 @@ func (c *ProcessesChecker) Run(ctx context.Context) (string, error) {
 	var candidatesProcesses []processlib.Process
 	for _, proc := range processes {
 		if proc.Executable() != c.executableName {
-			//log.Debugf("processes: pid [%d] %q doesn't match executable name", proc.Pid(), proc.Executable())
 			continue
 		}
 		candidatesProcesses = append(candidatesProcesses, proc)
@@ -78,13 +77,7 @@ func (c *ProcessesChecker) Run(ctx context.Context) (string, error) {
 		}
 		// Putting back in one piece
 		b = bytes.Join(args, []byte(" "))
-		// Replacing NUL characters by spaces
-		//b = bytes.Replace(b, backslashZero, []byte(" "), -1)
 
-		// Adding \0 at the end of string
-		//for _, v := range backslashZero {
-		//	b = append(b, v)
-		//}
 		cmdargs := string(b[:])
 
 		if cmdargs != c.cfg.Args {
