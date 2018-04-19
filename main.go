@@ -84,7 +84,20 @@ func main() {
 	yag.runMainLoop(ctx, &wg)
 	log.Info("Received exit signal; stopping jagozzi")
 	log.Debug("main: waiting for all goroutines")
-	wg.Wait()
+	exitCtx, cancelFunc := context.WithTimeout(context.Background(), time.Second*2)
+	defer cancelFunc()
+	wg.Add(1)
+	exitChan := make(chan interface{}, 1)
+	go func() {
+		wg.Wait()
+		exitChan <- true
+	}()
+	select {
+	case <-exitChan:
+		log.Debug("subroutines exited")
+	case <-exitCtx.Done():
+		log.Debug("exit context timeout")
+	}
 	yag.Unload()
 	log.Debug("main: all goroutines exited, exiting main")
 }
