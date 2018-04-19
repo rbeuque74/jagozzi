@@ -34,14 +34,18 @@ type Result struct {
 	Checker Checker
 }
 
+type RenderModel interface {
+	Error() error
+}
+
 // RenderError allow personalised rendering if checker contains a template
-func RenderError(tmpl *template.Template, model interface{}, originalError error) error {
+func RenderError(tmpl *template.Template, model RenderModel) error {
 	if tmpl == nil {
-		return originalError
+		return model.Error()
 	}
 	buf := new(bytes.Buffer)
 	if err := tmpl.Execute(buf, model); err != nil {
-		return fmt.Errorf(errFailedTemplate, err, originalError)
+		return fmt.Errorf(errFailedTemplate, err, model.Error())
 	}
 	return fmt.Errorf(buf.String())
 }

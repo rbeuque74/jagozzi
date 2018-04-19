@@ -2,6 +2,7 @@ package http
 
 import (
 	"bytes"
+	"errors"
 	"net/http"
 	"text/template"
 	"time"
@@ -63,6 +64,7 @@ func (cfg *httpConfig) UnmarshalJSON(b []byte) error {
 			},
 			Request:     http.Request{},
 			ElapsedTime: time.Duration(2) * time.Second,
+			Err:         errors.New("standard error"),
 		}
 
 		// testing that we can apply template to model

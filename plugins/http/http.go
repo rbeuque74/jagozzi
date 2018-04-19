@@ -37,6 +37,11 @@ type result struct {
 	Response    http.Response
 	Request     http.Request
 	ElapsedTime time.Duration
+	Err         error
+}
+
+func (res result) Error() error {
+	return res.Err
 }
 
 func (c *HTTPChecker) Run(ctx context.Context) (string, error) {
@@ -64,16 +69,20 @@ func (c *HTTPChecker) Run(ctx context.Context) (string, error) {
 		Response:    *resp,
 		Request:     *req,
 		ElapsedTime: elapsedTime,
+		Err:         nil,
 	}
 
 	if resp.StatusCode != int(c.cfg.Code) {
-		return "", plugins.RenderError(c.cfg.template, model, fmt.Errorf("invalid status code: %d instead of %d", resp.StatusCode, c.cfg.Code))
+		model.Err = fmt.Errorf("invalid status code: %d instead of %d", resp.StatusCode, c.cfg.Code)
+		return "", plugins.RenderError(c.cfg.template, model)
 	}
 
 	if elapsedTime > c.cfg.Critical {
-		return "", plugins.RenderError(c.cfg.template, model, fmt.Errorf("critical timeout: request took %s instead of %s", elapsedTime, c.cfg.Critical.Round(time.Millisecond)))
+		model.Err = fmt.Errorf("critical timeout: request took %s instead of %s", elapsedTime, c.cfg.Critical.Round(time.Millisecond))
+		return "", plugins.RenderError(c.cfg.template, model)
 	} else if elapsedTime > c.cfg.Warning {
-		return "", plugins.RenderError(c.cfg.template, model, fmt.Errorf("timeout: request took %s instead of %s", elapsedTime, c.cfg.Warning.Round(time.Millisecond)))
+		model.Err = fmt.Errorf("timeout: request took %s instead of %s", elapsedTime, c.cfg.Warning.Round(time.Millisecond))
+		return "", plugins.RenderError(c.cfg.template, model)
 	}
 	return "OK", nil
 }

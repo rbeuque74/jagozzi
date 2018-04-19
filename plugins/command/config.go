@@ -2,6 +2,7 @@ package command
 
 import (
 	"bytes"
+	"errors"
 	"os/exec"
 	"text/template"
 
@@ -47,6 +48,7 @@ func (cfg *commandConfig) UnmarshalJSON(b []byte) error {
 			Cmd:    exec.Cmd{},
 			Stdout: "",
 			Stderr: "",
+			Err:    errors.New("standard error"),
 		}
 
 		// testing that we can apply template to model

@@ -39,6 +39,11 @@ type result struct {
 	Cmd    exec.Cmd
 	Stdout string
 	Stderr string
+	Err    error
+}
+
+func (res result) Error() error {
+	return res.Err
 }
 
 func (c *CommandChecker) Run(ctx context.Context) (string, error) {
@@ -52,6 +57,7 @@ func (c *CommandChecker) Run(ctx context.Context) (string, error) {
 		Cmd:    *cmd,
 		Stdout: "",
 		Stderr: "",
+		Err:    nil,
 	}
 
 	if err := cmd.Start(); err != nil {
@@ -66,17 +72,21 @@ func (c *CommandChecker) Run(ctx context.Context) (string, error) {
 		model.Stdout = stdout.String()
 
 		if err := cmd.Process.Kill(); err != nil {
-			return "KO", plugins.RenderError(c.cfg.template, model, fmt.Errorf("command: context expired, kill pid %q failed: %s", cmd.Process.Pid, err))
+			model.Err = fmt.Errorf("command: context expired, kill pid %q failed: %s", cmd.Process.Pid, err)
+			return "KO", plugins.RenderError(c.cfg.template, model)
 		}
-		return "KO", plugins.RenderError(c.cfg.template, model, errors.New("command: context finished before command finished execution"))
+		model.Err = errors.New("command: context finished before command finished execution")
+		return "KO", plugins.RenderError(c.cfg.template, model)
 	case err := <-done:
 		model.Stderr = stderr.String()
 		model.Stdout = stdout.String()
 
 		if typedErr, ok := err.(*exec.ExitError); ok {
-			return "KO", plugins.RenderError(c.cfg.template, model, fmt.Errorf("%s: %s", typedErr, model.Stderr))
+			model.Err = fmt.Errorf("%s: %s", typedErr, model.Stderr)
+			return "KO", plugins.RenderError(c.cfg.template, model)
 		} else if err != nil {
-			return "KO", plugins.RenderError(c.cfg.template, model, fmt.Errorf("%s: %s", err, model.Stderr))
+			model.Err = fmt.Errorf("%s: %s", err, model.Stderr)
+			return "KO", plugins.RenderError(c.cfg.template, model)
 		} else {
 			return model.Stdout, nil
 		}
