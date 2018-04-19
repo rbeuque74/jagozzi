@@ -56,9 +56,11 @@ func (cfg *httpConfig) UnmarshalJSON(b []byte) error {
 		}
 
 		model := result{
-			Cfg:         *cfg,
-			Result:      plugins.STATE_CRITICAL,
-			Response:    http.Response{},
+			Cfg:    *cfg,
+			Result: plugins.STATE_CRITICAL,
+			Response: http.Response{
+				Request: &http.Request{},
+			},
 			Request:     http.Request{},
 			ElapsedTime: time.Duration(2) * time.Second,
 		}
