@@ -2,6 +2,7 @@ package nsca
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/rbeuque74/jagozzi/config"
 	"github.com/rbeuque74/jagozzi/plugins"
@@ -17,7 +18,22 @@ type Consumer struct {
 }
 
 // New generates a new NSCA Consumer instance
-func New(messageChannel chan *nsca.Message, exitChannel chan interface{}) Consumer {
+func New(cfg config.ConsumerConfiguration, messageChannel chan *nsca.Message, exitChannel chan interface{}) Consumer {
+	if cfg.Port == 0 {
+		// default nsca port
+		cfg.Port = 5667
+	}
+	serv := nsca.ServerInfo{
+		Host:             cfg.Server,
+		Port:             fmt.Sprintf("%d", cfg.Port),
+		EncryptionMethod: int(cfg.Encryption),
+		Password:         cfg.Key,
+		Timeout:          cfg.Timeout,
+	}
+
+	log.Infof("consumer: starting NSCA server to %s:%d", cfg.Server, cfg.Port)
+	go nsca.RunEndpoint(serv, exitChannel, messageChannel)
+
 	return Consumer{
 		messageChannel: messageChannel,
 		exitChannel:    exitChannel,

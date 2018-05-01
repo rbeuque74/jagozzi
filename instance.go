@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/rbeuque74/jagozzi/config"
 	"github.com/rbeuque74/jagozzi/consumers/nsca"
@@ -32,25 +31,11 @@ func Load(cfg config.Configuration) (*Jagozzi, error) {
 			log.Warnf("config: found an unknown consumer type %q", consumer.Type)
 			continue
 		}
-		if consumer.Port == 0 {
-			// default nsca port
-			consumer.Port = 5667
-		}
-		serv := nscalib.ServerInfo{
-			Host:             consumer.Server,
-			Port:             fmt.Sprintf("%d", consumer.Port),
-			EncryptionMethod: int(consumer.Encryption),
-			Password:         consumer.Key,
-			Timeout:          consumer.Timeout,
-		}
 
 		exitChannel := make(chan interface{})
 		messagesChannel := make(chan *nscalib.Message)
 
-		log.Infof("consumer: starting NSCA server to %s:%d", consumer.Server, consumer.Port)
-		go nscalib.RunEndpoint(serv, exitChannel, messagesChannel)
-
-		consumerInstance := nsca.New(messagesChannel, exitChannel)
+		consumerInstance := nsca.New(consumer, messagesChannel, exitChannel)
 		y.consumers = append(y.consumers, consumerInstance)
 	}
 
