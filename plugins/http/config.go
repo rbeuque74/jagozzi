@@ -35,12 +35,12 @@ func (cfg *httpConfig) UnmarshalJSON(b []byte) error {
 		return err
 	}
 
+	defaults.SetDefaults(raw)
+
 	cfg.rawHTTPConfig = *raw
 	cfg.Timeout = time.Duration(raw.RawTimeout) * time.Millisecond
 	cfg.Warning = time.Duration(raw.RawWarning) * time.Millisecond
 	cfg.Critical = time.Duration(raw.RawCritical) * time.Millisecond
-
-	defaults.SetDefaults(raw)
 
 	validate := validator.New()
 	if err := validate.Struct(cfg); err != nil {
