@@ -3,6 +3,9 @@ language: go
 go:
 - "1.10.x"
 
+before_script:
+  - go get -v ./...
+
 after_script:
   - go get -v github.com/alecthomas/gometalinter/...
   - gometalinter --install
