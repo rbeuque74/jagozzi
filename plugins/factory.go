@@ -24,7 +24,7 @@ type WithServiceName interface {
 type Checker interface {
 	WithServiceName
 	Name() string
-	Run(context.Context) (string, error)
+	Run(context.Context) Result
 }
 
 // CheckerFactory is the function interface to creates a checker instance

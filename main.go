@@ -125,29 +125,18 @@ func (yag Jagozzi) runMainLoop(ctx context.Context, wg *sync.WaitGroup) {
 func (yag Jagozzi) runChecker(ctx context.Context, checker plugins.Checker, wg *sync.WaitGroup) {
 	wg.Add(1)
 	defer wg.Done()
-	result, err := checker.Run(ctx)
-	if err == nil {
-		log.Infof("checker: result was %q", result)
-		yag.SendConsumers(ctx, plugins.Result{
-			Status:  plugins.STATE_OK,
-			Message: result,
-			Checker: checker,
-		})
-		return
-	}
+	result := checker.Run(ctx)
 
 	if ctx.Err() != nil && ctx.Err() == context.Canceled {
-		log.Println("jagozzi: context cancelled: ", err)
+		log.Infof("jagozzi: context cancelled while running checker: %s", checker.Name())
 		return
 	} else if ctx.Err() != nil && ctx.Err() == context.DeadlineExceeded {
-		log.Println("jagozzi: context timed out: ", err)
-		return
+		log.Errorf("jagozzi: context timed out while running checker: %s", checker.Name())
+		ctxConsumer, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+		defer cancel()
+		ctx = ctxConsumer
 	}
 
-	log.Errorf("checker: %s", err)
-	yag.SendConsumers(ctx, plugins.Result{
-		Status:  plugins.STATE_CRITICAL,
-		Message: err.Error(),
-		Checker: checker,
-	})
+	log.Debugf("checker: result was %q", result.Message)
+	yag.SendConsumers(ctx, result)
 }

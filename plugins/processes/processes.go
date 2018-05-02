@@ -29,7 +29,7 @@ type ProcessesChecker struct {
 }
 
 // Name returns the name of the checker
-func (c *ProcessesChecker) Name() string {
+func (c ProcessesChecker) Name() string {
 	return pluginName
 }
 
@@ -39,10 +39,10 @@ func (c ProcessesChecker) ServiceName() string {
 }
 
 // Run is performing the checker protocol
-func (c *ProcessesChecker) Run(ctx context.Context) (string, error) {
+func (c *ProcessesChecker) Run(ctx context.Context) plugins.Result {
 	processes, err := processlib.Processes()
 	if err != nil {
-		return "KO", fmt.Errorf("unable to retrieve processes: %s", err)
+		return plugins.ResultFromError(c, err, "unable to retrieve processes")
 	}
 
 	var candidatesProcesses []processlib.Process
@@ -57,7 +57,7 @@ func (c *ProcessesChecker) Run(ctx context.Context) (string, error) {
 	for _, proc := range candidatesProcesses {
 		path, err := filepath.EvalSymlinks(fmt.Sprintf("/proc/%d/exe", proc.Pid()))
 		if err != nil {
-			return "KO", fmt.Errorf("can't open executable symlink from pid: %s", err)
+			return plugins.ResultFromError(c, err, "can't open executable symlink from pid")
 		}
 
 		if path != c.cfg.Command {
@@ -67,7 +67,7 @@ func (c *ProcessesChecker) Run(ctx context.Context) (string, error) {
 
 		b, err := ioutil.ReadFile(fmt.Sprintf("/proc/%d/cmdline", proc.Pid()))
 		if err != nil {
-			return "KO", fmt.Errorf("can't open cmdline from pid: %s", err)
+			return plugins.ResultFromError(c, err, "can't open cmdline")
 		}
 
 		// Removing last NUL characters
@@ -92,11 +92,23 @@ func (c *ProcessesChecker) Run(ctx context.Context) (string, error) {
 	}
 
 	if len(selectedProcesses) == 0 {
-		return "KO", fmt.Errorf("Process %s %s is not running", c.cfg.Command, c.cfg.Args)
+		return plugins.Result{
+			Status:  plugins.STATE_CRITICAL,
+			Message: fmt.Sprintf("Process %s %s is not running", c.cfg.Command, c.cfg.Args),
+			Checker: c,
+		}
 	} else if len(selectedProcesses) > 1 {
-		return "KO", fmt.Errorf("Process %s %s have too many instances running", c.cfg.Command, c.cfg.Args)
+		return plugins.Result{
+			Status:  plugins.STATE_WARNING,
+			Message: fmt.Sprintf("Process %s %s have too many instances running", c.cfg.Command, c.cfg.Args),
+			Checker: c,
+		}
 	} else {
-		return fmt.Sprintf("Process %s %s is running", c.cfg.Command, c.cfg.Args), nil
+		return plugins.Result{
+			Status:  plugins.STATE_OK,
+			Message: fmt.Sprintf("Process %s %s is running", c.cfg.Command, c.cfg.Args),
+			Checker: c,
+		}
 	}
 }
 

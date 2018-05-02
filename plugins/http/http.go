@@ -25,7 +25,7 @@ type HTTPChecker struct {
 }
 
 // Name returns the name of the checker
-func (c *HTTPChecker) Name() string {
+func (c HTTPChecker) Name() string {
 	return pluginName
 }
 
@@ -50,7 +50,7 @@ func (res result) Error() error {
 }
 
 // Run is performing the checker protocol
-func (c *HTTPChecker) Run(ctx context.Context) (string, error) {
+func (c *HTTPChecker) Run(ctx context.Context) plugins.Result {
 	httpCtx, cancel := context.WithTimeout(ctx, c.cfg.Timeout)
 	defer cancel()
 
@@ -63,7 +63,8 @@ func (c *HTTPChecker) Run(ctx context.Context) (string, error) {
 	req, err := http.NewRequest(c.cfg.Method, c.cfg.URL, nil)
 	if err != nil {
 		model.Err = err
-		return "", fmt.Errorf(plugins.RenderError(c.cfg.templates.ErrNewHTTPRequest, model))
+		err = fmt.Errorf(plugins.RenderError(c.cfg.templates.ErrNewHTTPRequest, model))
+		return plugins.ResultFromError(c, err, "")
 	}
 	req = req.WithContext(httpCtx)
 
@@ -73,7 +74,8 @@ func (c *HTTPChecker) Run(ctx context.Context) (string, error) {
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		model.Err = err
-		return "", fmt.Errorf(plugins.RenderError(c.cfg.templates.ErrRequest, model))
+		err = fmt.Errorf(plugins.RenderError(c.cfg.templates.ErrRequest, model))
+		return plugins.ResultFromError(c, err, "")
 	}
 	defer resp.Body.Close()
 
@@ -94,17 +96,36 @@ func (c *HTTPChecker) Run(ctx context.Context) (string, error) {
 
 	if resp.StatusCode != int(c.cfg.Code) {
 		model.Err = fmt.Errorf("invalid status code: %d instead of %d", resp.StatusCode, c.cfg.Code)
-		return "", fmt.Errorf(plugins.RenderError(c.cfg.templates.ErrStatusCode, model))
+
+		return plugins.Result{
+			Checker: c,
+			Message: plugins.RenderError(c.cfg.templates.ErrStatusCode, model),
+			Status:  plugins.STATE_CRITICAL,
+		}
 	}
 
 	if elapsedTime > c.cfg.Critical {
-		model.Err = fmt.Errorf("critical timeout: request took %s instead of %s", elapsedTime, c.cfg.Critical.Round(time.Millisecond))
-		return "", fmt.Errorf(plugins.RenderError(c.cfg.templates.ErrTimeoutCritical, model))
+		model.Err = fmt.Errorf("critical timeout: request took %s instead of %s (%s)", elapsedTime, c.cfg.Critical.Round(time.Millisecond), resp.Status)
+
+		return plugins.Result{
+			Checker: c,
+			Message: plugins.RenderError(c.cfg.templates.ErrTimeoutCritical, model),
+			Status:  plugins.STATE_CRITICAL,
+		}
 	} else if elapsedTime > c.cfg.Warning {
-		model.Err = fmt.Errorf("timeout: request took %s instead of %s", elapsedTime, c.cfg.Warning.Round(time.Millisecond))
-		return "", fmt.Errorf(plugins.RenderError(c.cfg.templates.ErrTimeoutWarning, model))
+		model.Err = fmt.Errorf("timeout: request took %s instead of %s (%s)", elapsedTime, c.cfg.Warning.Round(time.Millisecond), resp.Status)
+
+		return plugins.Result{
+			Checker: c,
+			Message: plugins.RenderError(c.cfg.templates.ErrTimeoutWarning, model),
+			Status:  plugins.STATE_WARNING,
+		}
 	}
-	return "OK", nil
+	return plugins.Result{
+		Checker: c,
+		Message: fmt.Sprintf("%s - %s elapsed", resp.Status, elapsedTime),
+		Status:  plugins.STATE_OK,
+	}
 }
 
 // NewHTTPChecker create a HTTP checker

@@ -25,7 +25,7 @@ type SupervisorChecker struct {
 }
 
 // Name returns the name of the checker
-func (c *SupervisorChecker) Name() string {
+func (c SupervisorChecker) Name() string {
 	return pluginName
 }
 
@@ -35,7 +35,7 @@ func (c SupervisorChecker) ServiceName() string {
 }
 
 // Run is performing the checker protocol
-func (c *SupervisorChecker) Run(ctx context.Context) (string, error) {
+func (c *SupervisorChecker) Run(ctx context.Context) plugins.Result {
 	rpcc := xmlrpcclient.NewXmlRPCClient(c.pluginCfg.ServerURL.String())
 	username := c.pluginCfg.ServerURL.User.Username()
 	password, passwordSet := c.pluginCfg.ServerURL.User.Password()
@@ -46,7 +46,7 @@ func (c *SupervisorChecker) Run(ctx context.Context) (string, error) {
 
 	processesStates, err := rpcc.GetAllProcessInfo()
 	if err != nil {
-		return "KO", fmt.Errorf("unable to contact supervisor daemon: %s", err)
+		return plugins.ResultFromError(c, err, "unable to contact supervisor daemon")
 	}
 
 	for _, pinfo := range processesStates.Value {
@@ -62,13 +62,25 @@ func (c *SupervisorChecker) Run(ctx context.Context) (string, error) {
 			description = ""
 		}
 		if pinfo.State != process.RUNNING {
-			return "KO", fmt.Errorf("Service %s is currently %s: %s", name, processState.String(), description)
+			return plugins.Result{
+				Status:  plugins.STATE_CRITICAL,
+				Message: fmt.Sprintf("Service %s is currently %s: %s", name, processState.String(), description),
+				Checker: c,
+			}
 		} else if c.cfg.Service != nil {
-			return fmt.Sprintf("Service %s is running: %s", name, description), nil
+			return plugins.Result{
+				Status:  plugins.STATE_OK,
+				Message: fmt.Sprintf("Service %s is running: %s", name, description),
+				Checker: c,
+			}
 		}
 	}
 
-	return "All services are RUNNING", nil
+	return plugins.Result{
+		Status:  plugins.STATE_OK,
+		Message: "All services are running",
+		Checker: c,
+	}
 }
 
 // NewSupervisorChecker create a Supervisor checker

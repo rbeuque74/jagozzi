@@ -3,7 +3,6 @@ package nsca
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -25,9 +24,13 @@ func (fc fakeChecker) ServiceName() string {
 	return "fake-service-name"
 }
 
-func (fc fakeChecker) Run(ctx context.Context) (string, error) {
+func (fc fakeChecker) Run(ctx context.Context) plugins.Result {
 	fc.t.Fatal("fake checker should not run")
-	return "", errors.New("fake checker should not run")
+	return plugins.Result{
+		Status:  plugins.STATE_CRITICAL,
+		Message: "fake checker should never run",
+		Checker: fc,
+	}
 }
 
 func TestConsumerSendMessage(t *testing.T) {

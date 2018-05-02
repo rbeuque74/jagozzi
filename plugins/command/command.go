@@ -27,7 +27,7 @@ type CommandChecker struct {
 }
 
 // Name returns the name of the checker
-func (c *CommandChecker) Name() string {
+func (c CommandChecker) Name() string {
 	return pluginName
 }
 
@@ -50,7 +50,7 @@ func (res result) Error() error {
 }
 
 // Run is performing the checker protocol
-func (c *CommandChecker) Run(ctx context.Context) (string, error) {
+func (c *CommandChecker) Run(ctx context.Context) plugins.Result {
 	cmd := exec.Command(c.command, c.args...)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -65,8 +65,7 @@ func (c *CommandChecker) Run(ctx context.Context) (string, error) {
 	}
 
 	if err := cmd.Start(); err != nil {
-		log.Warn("command: can't start")
-		return "KO", err
+		return plugins.ResultFromError(c, err, "")
 	}
 	done := make(chan error)
 	go func() { done <- cmd.Wait() }()
@@ -76,10 +75,12 @@ func (c *CommandChecker) Run(ctx context.Context) (string, error) {
 		model.Stdout = stdout.String()
 
 		if err := cmd.Process.Kill(); err != nil {
-			return "KO", fmt.Errorf("command: context expired, kill pid %q failed: %s", cmd.Process.Pid, err)
+			return plugins.ResultFromError(c, err, fmt.Sprintf("command: context expired, kill pid %q failed", cmd.Process.Pid))
 		}
+
 		model.Err = ctx.Err()
-		return "KO", fmt.Errorf(plugins.RenderError(c.cfg.templates.ErrTimeout, model))
+		err := fmt.Errorf(plugins.RenderError(c.cfg.templates.ErrTimeout, model))
+		return plugins.ResultFromError(c, err, "")
 	case err := <-done:
 		model.Stderr = stderr.String()
 		model.Stdout = stdout.String()
@@ -87,11 +88,16 @@ func (c *CommandChecker) Run(ctx context.Context) (string, error) {
 		if typedErr, ok := err.(*exec.ExitError); ok {
 			model.ExitCode = typedErr.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
 			model.Err = fmt.Errorf("%s: %s", typedErr, model.Stderr)
-			return "KO", fmt.Errorf(plugins.RenderError(c.cfg.templates.ErrExitCode, model))
+			err = fmt.Errorf(plugins.RenderError(c.cfg.templates.ErrExitCode, model))
+			return plugins.ResultFromError(c, err, "")
 		} else if err != nil {
-			return "KO", fmt.Errorf("%s: %s", err, model.Stderr)
+			return plugins.ResultFromError(c, fmt.Errorf("%s: %s", err, model.Stderr), "")
 		} else {
-			return model.Stdout, nil
+			return plugins.Result{
+				Status:  plugins.STATE_OK,
+				Message: model.Stdout,
+				Checker: c,
+			}
 		}
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rbeuque74/jagozzi/plugins"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -37,9 +38,10 @@ func TestHTTPServer(t *testing.T) {
 
 	ctxRun, cancelFunc1 := context.WithTimeout(context.Background(), time.Second)
 	defer cancelFunc1()
-	result, err := checker.Run(ctxRun)
-	assert.Nilf(t, err, "http error: %q", err)
-	assert.Equalf(t, "OK", result, "http bad result: %q", result)
+
+	result := checker.Run(ctxRun)
+	assert.Equal(t, plugins.STATE_OK, result.Status)
+	assert.Containsf(t, result.Message, "200 OK", "http bad message: %q", result.Message)
 }
 
 func TestHTTPServerFails(t *testing.T) {
@@ -72,11 +74,10 @@ func TestHTTPServerFails(t *testing.T) {
 
 	ctxRun, cancelFunc1 := context.WithTimeout(context.Background(), time.Second)
 	defer cancelFunc1()
-	result, err := checker.Run(ctxRun)
-	assert.NotNilf(t, err, "http no error but should")
-	assert.Contains(t, err.Error(), "timeout: request took")
-	assert.Contains(t, err.Error(), "instead of 40ms")
-	assert.Equal(t, "", result)
+	result := checker.Run(ctxRun)
+	assert.Equal(t, plugins.STATE_WARNING, result.Status)
+	assert.Contains(t, result.Message, "timeout: request took")
+	assert.Contains(t, result.Message, "instead of 40ms")
 
 	// critical
 	cfg["warn"] = 10
@@ -86,11 +87,11 @@ func TestHTTPServerFails(t *testing.T) {
 
 	ctxRun, cancelFunc1 = context.WithTimeout(context.Background(), time.Second)
 	defer cancelFunc1()
-	result, err = checker.Run(ctxRun)
-	assert.NotNilf(t, err, "http no error but should")
-	assert.Contains(t, err.Error(), "critical timeout: request took")
-	assert.Contains(t, err.Error(), "instead of 50ms")
-	assert.Equal(t, "", result)
+
+	result = checker.Run(ctxRun)
+	assert.Equal(t, plugins.STATE_CRITICAL, result.Status)
+	assert.Contains(t, result.Message, "critical timeout: request took")
+	assert.Contains(t, result.Message, "instead of 50ms")
 
 	// bad status code
 	cfg["code"] = 400
@@ -99,10 +100,9 @@ func TestHTTPServerFails(t *testing.T) {
 
 	ctxRun, cancelFunc1 = context.WithTimeout(context.Background(), time.Second)
 	defer cancelFunc1()
-	result, err = checker.Run(ctxRun)
-	assert.NotNilf(t, err, "http no error but should")
-	assert.Equal(t, "invalid status code: 200 instead of 400", err.Error())
-	assert.Equal(t, "", result)
+	result = checker.Run(ctxRun)
+	assert.Equal(t, plugins.STATE_CRITICAL, result.Status)
+	assert.Equal(t, "invalid status code: 200 instead of 400", result.Message)
 
 	// bad method
 	cfg["code"] = 200
@@ -114,10 +114,9 @@ func TestHTTPServerFails(t *testing.T) {
 
 	ctxRun, cancelFunc1 = context.WithTimeout(context.Background(), time.Second)
 	defer cancelFunc1()
-	result, err = httpChecker.Run(ctxRun)
-	assert.NotNilf(t, err, "http no error but should")
-	assert.Equal(t, `net/http: invalid method "http not valid method"`, err.Error())
-	assert.Equal(t, "", result)
+	result = httpChecker.Run(ctxRun)
+	assert.Equal(t, plugins.STATE_CRITICAL, result.Status)
+	assert.Equal(t, `net/http: invalid method "http not valid method"`, result.Message)
 
 	// conn refused
 	cfg["url"] = "http://localhost:8081"
@@ -126,10 +125,10 @@ func TestHTTPServerFails(t *testing.T) {
 
 	ctxRun, cancelFunc1 = context.WithTimeout(context.Background(), time.Second)
 	defer cancelFunc1()
-	result, err = checker.Run(ctxRun)
-	assert.NotNilf(t, err, "http no error but should")
-	assert.Containsf(t, err.Error(), "connection refused", "err is not connection refused: %q", err)
-	assert.Equal(t, "", result)
+
+	result = checker.Run(ctxRun)
+	assert.Equal(t, plugins.STATE_CRITICAL, result.Status)
+	assert.Containsf(t, result.Message, "connection refused", "err is not connection refused: %q", result.Message)
 }
 
 func TestHTTPServerFailsTemplating(t *testing.T) {
@@ -168,11 +167,10 @@ func TestHTTPServerFailsTemplating(t *testing.T) {
 	ctxRun, cancelFunc1 := context.WithTimeout(context.Background(), time.Second)
 	defer cancelFunc1()
 
-	result, err := checker.Run(ctxRun)
-	assert.NotNilf(t, err, "http no error but should")
-	assert.Contains(t, err.Error(), "personnalised: critical timeout")
-	assert.Contains(t, err.Error(), "instead of 50ms")
-	assert.Equal(t, "", result)
+	result := checker.Run(ctxRun)
+	assert.Equal(t, plugins.STATE_CRITICAL, result.Status)
+	assert.Contains(t, result.Message, "personnalised: critical timeout")
+	assert.Contains(t, result.Message, "instead of 50ms")
 
 	// bad status code
 	cfg["code"] = 400
@@ -181,11 +179,9 @@ func TestHTTPServerFailsTemplating(t *testing.T) {
 
 	ctxRun, cancelFunc1 = context.WithTimeout(context.Background(), time.Second)
 	defer cancelFunc1()
-	result, err = checker.Run(ctxRun)
-	assert.NotNilf(t, err, "http no error but should")
-	assert.Equal(t, "personnalised: received status code 200, I was looking for 400; original: invalid status code: 200 instead of 400", err.Error())
-	assert.Equal(t, "", result)
-
+	result = checker.Run(ctxRun)
+	assert.Equal(t, plugins.STATE_CRITICAL, result.Status)
+	assert.Equal(t, "personnalised: received status code 200, I was looking for 400; original: invalid status code: 200 instead of 400", result.Message)
 }
 
 func TestHTTPServerFailsTemplatingJSON(t *testing.T) {
@@ -223,8 +219,7 @@ func TestHTTPServerFailsTemplatingJSON(t *testing.T) {
 	ctxRun, cancelFunc1 := context.WithTimeout(context.Background(), time.Second)
 	defer cancelFunc1()
 
-	result, err := checker.Run(ctxRun)
-	assert.NotNilf(t, err, "http no error but should")
-	assert.Equal(t, "error while fetching: json message field", err.Error())
-	assert.Equal(t, "", result)
+	result := checker.Run(ctxRun)
+	assert.Equal(t, plugins.STATE_CRITICAL, result.Status)
+	assert.Equal(t, "error while fetching: json message field", result.Message)
 }

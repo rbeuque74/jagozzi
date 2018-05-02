@@ -47,3 +47,17 @@ func RenderError(tmpl *template.Template, model interface{}) string {
 	}
 	return buf.String()
 }
+
+// ResultFromError generates a critical result from a checker and an error
+func ResultFromError(checker Checker, err error, prefix string) Result {
+	msg := err.Error()
+	if prefix != "" {
+		msg = prefix + ": " + msg
+	}
+
+	return Result{
+		Status:  STATE_CRITICAL,
+		Message: msg,
+		Checker: checker,
+	}
+}

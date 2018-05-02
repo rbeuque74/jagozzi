@@ -64,7 +64,7 @@ func NewMarathonChecker(checkerCfg interface{}, pluginCfg interface{}) (plugins.
 }
 
 // Name returns the name of the checker
-func (c *MarathonChecker) Name() string {
+func (c MarathonChecker) Name() string {
 	return pluginName
 }
 
@@ -83,39 +83,54 @@ func (rt httproundtripper) RoundTrip(req *http.Request) (*http.Response, error) 
 }
 
 // Run is performing the checker protocol
-func (c *MarathonChecker) Run(ctx context.Context) (string, error) {
+func (c *MarathonChecker) Run(ctx context.Context) plugins.Result {
 	appID := c.cfg.ID
 	c.roundtripper.ctx = &ctx
 	app, err := c.client.Application(appID)
 	if err != nil {
-		log.Warnf("marathon/err: %s", err)
-		return "KO", err
+		return plugins.ResultFromError(c, err, "")
 	}
 
 	log.WithFields(log.Fields{"healthy": app.TasksHealthy, "running": app.TasksRunning, "staged": app.TasksStaged, "unhealthy": app.TasksUnhealthy}).Info(app.ID)
 	running := int64(app.TasksRunning)
 	if running < c.cfg.Critical {
-		return "KO", fmt.Errorf("%d/%d instances running, threshold: %d", running, *app.Instances, c.cfg.Critical)
+		return plugins.Result{
+			Status:  plugins.STATE_CRITICAL,
+			Message: fmt.Sprintf("%d/%d instances running, threshold: %d", running, *app.Instances, c.cfg.Critical),
+			Checker: c,
+		}
 	} else if running < c.cfg.Warning {
-		return "KO", fmt.Errorf("%d/%d instances running, threshold: %d", running, *app.Instances, c.cfg.Warning)
+		return plugins.Result{
+			Status:  plugins.STATE_WARNING,
+			Message: fmt.Sprintf("%d/%d instances running, threshold: %d", running, *app.Instances, c.cfg.Warning),
+			Checker: c,
+		}
 	} else if running != 0 && running == int64(app.TasksUnhealthy) {
-		return "KO", fmt.Errorf("%d unhealthy; %d/%d healthy instances running", app.TasksUnhealthy, (app.TasksRunning - app.TasksUnhealthy), *app.Instances)
+		return plugins.Result{
+			Status:  plugins.STATE_WARNING,
+			Message: fmt.Sprintf("%d unhealthy; %d/%d healthy instances running", app.TasksUnhealthy, (app.TasksRunning - app.TasksUnhealthy), *app.Instances),
+			Checker: c,
+		}
 	}
 
 	log.Infof("%d instances found for %s", running, appID)
 
-	if res, err := c.runStaggedTasks(ctx, *app); err != nil {
-		return res, err
+	if result := c.runStaggedTasks(ctx, *app); result.Status != plugins.STATE_OK {
+		return result
 	}
 
-	if res, err := c.runExitedTasks(ctx); err != nil {
-		return res, err
+	if result := c.runExitedTasks(ctx); result.Status != plugins.STATE_OK {
+		return result
 	}
 
-	return fmt.Sprintf("OK: %d running; %d unhealthy; %d staged", (app.TasksRunning - app.TasksUnhealthy), app.TasksUnhealthy, app.TasksStaged), nil
+	return plugins.Result{
+		Status:  plugins.STATE_OK,
+		Message: fmt.Sprintf("OK: %d running; %d unhealthy; %d staged", (app.TasksRunning - app.TasksUnhealthy), app.TasksUnhealthy, app.TasksStaged),
+		Checker: c,
+	}
 }
 
-func (c *MarathonChecker) runStaggedTasks(ctx context.Context, app marathonlib.Application) (string, error) {
+func (c *MarathonChecker) runStaggedTasks(ctx context.Context, app marathonlib.Application) plugins.Result {
 	tasks := app.Tasks
 
 	for _, taskPtr := range tasks {
@@ -142,15 +157,27 @@ func (c *MarathonChecker) runStaggedTasks(ctx context.Context, app marathonlib.A
 		staggedSince := time.Since(staggedDate)
 		fifteenMinute := 15 * time.Minute
 		if staggedSince > fifteenMinute {
-			return "KO", fmt.Errorf("task stagged since 15 minutes")
+			return plugins.Result{
+				Status:  plugins.STATE_WARNING,
+				Message: "task stagged since 15 minutes",
+				Checker: c,
+			}
 		}
 	}
 
-	return "OK", nil
+	return plugins.Result{
+		Status:  plugins.STATE_OK,
+		Message: "No stagged tasks",
+		Checker: c,
+	}
 }
 
-func (c *MarathonChecker) runExitedTasks(ctx context.Context) (string, error) {
-	return "OK", nil
+func (c *MarathonChecker) runExitedTasks(ctx context.Context) plugins.Result {
+	return plugins.Result{
+		Status:  plugins.STATE_OK,
+		Message: "OK",
+		Checker: c,
+	}
 }
 
 func parseMarathonDateTime(value string) (time.Time, error) {
