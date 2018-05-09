@@ -8,13 +8,13 @@ import (
 	"time"
 )
 
-type HttpServerTimeout struct {
+type FakeTestHTTPServer struct {
 	Sleep      time.Duration
 	StatusCode int
 	JSONBody   bool
 }
 
-func (s HttpServerTimeout) ServeHTTP(respW http.ResponseWriter, req *http.Request) {
+func (s FakeTestHTTPServer) ServeHTTP(respW http.ResponseWriter, req *http.Request) {
 	if s.Sleep != 0 {
 		time.Sleep(s.Sleep)
 	}
@@ -30,7 +30,7 @@ func (s HttpServerTimeout) ServeHTTP(respW http.ResponseWriter, req *http.Reques
 	}
 }
 
-func NewHTTPServer(t *testing.T, cfg HttpServerTimeout) func(context.Context) error {
+func NewHTTPServer(t *testing.T, cfg FakeTestHTTPServer) func(context.Context) error {
 	srv := http.Server{
 		Addr:    ":8080",
 		Handler: cfg,

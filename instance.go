@@ -43,7 +43,7 @@ func Load(cfg config.Configuration) (*Jagozzi, error) {
 	for _, plugin := range y.cfg.Plugins {
 		for _, check := range plugin.Checks {
 			checker, err := plugins.CreateChecker(plugin.Type, check, plugin.Config)
-			if err != nil && err == plugins.UnknownCheckerTypeErr {
+			if err != nil && err == plugins.ErrUnknownCheckerType {
 				log.WithField("type", plugin.Type).Warn(err)
 				continue
 			} else if err != nil {

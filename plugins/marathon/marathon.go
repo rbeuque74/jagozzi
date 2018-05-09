@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"time"
 
-	_ "github.com/fsamin/go-dump"
 	marathonlib "github.com/gambol99/go-marathon"
 	"github.com/rbeuque74/jagozzi/plugins"
 	log "github.com/sirupsen/logrus"
@@ -28,6 +27,7 @@ func init() {
 	plugins.Register(pluginName, NewMarathonChecker)
 }
 
+// NewMarathonChecker create a Marathon checker
 func NewMarathonChecker(checkerCfg interface{}, pluginCfg interface{}) (plugins.Checker, error) {
 	cfg, err := loadConfiguration(checkerCfg)
 	if err != nil {
@@ -63,10 +63,12 @@ func NewMarathonChecker(checkerCfg interface{}, pluginCfg interface{}) (plugins.
 	}, nil
 }
 
+// Name returns the name of the checker
 func (c *MarathonChecker) Name() string {
 	return pluginName
 }
 
+// ServiceName returns the name of the NSCA service associated to the checker
 func (c MarathonChecker) ServiceName() string {
 	return c.cfg.ServiceName()
 }
@@ -80,6 +82,7 @@ func (rt httproundtripper) RoundTrip(req *http.Request) (*http.Response, error) 
 	return http.DefaultTransport.RoundTrip(req)
 }
 
+// Run is performing the checker protocol
 func (c *MarathonChecker) Run(ctx context.Context) (string, error) {
 	appID := c.cfg.ID
 	c.roundtripper.ctx = &ctx

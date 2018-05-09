@@ -24,14 +24,17 @@ type SupervisorChecker struct {
 	executableName string
 }
 
+// Name returns the name of the checker
 func (c *SupervisorChecker) Name() string {
 	return pluginName
 }
 
+// ServiceName returns the name of the NSCA service associated to the checker
 func (c SupervisorChecker) ServiceName() string {
 	return c.cfg.Name
 }
 
+// Run is performing the checker protocol
 func (c *SupervisorChecker) Run(ctx context.Context) (string, error) {
 	rpcc := xmlrpcclient.NewXmlRPCClient(c.pluginCfg.ServerURL.String())
 	username := c.pluginCfg.ServerURL.User.Username()
@@ -68,6 +71,7 @@ func (c *SupervisorChecker) Run(ctx context.Context) (string, error) {
 	return "All services are RUNNING", nil
 }
 
+// NewSupervisorChecker create a Supervisor checker
 func NewSupervisorChecker(checkerCfg interface{}, pluginCfg interface{}) (plugins.Checker, error) {
 	cfg, err := loadConfiguration(checkerCfg)
 	if err != nil {

@@ -26,10 +26,12 @@ type CommandChecker struct {
 	args    []string
 }
 
+// Name returns the name of the checker
 func (c *CommandChecker) Name() string {
 	return pluginName
 }
 
+// ServiceName returns the name of the NSCA service associated to the checker
 func (c CommandChecker) ServiceName() string {
 	return c.cfg.Name
 }
@@ -47,6 +49,7 @@ func (res result) Error() error {
 	return res.Err
 }
 
+// Run is performing the checker protocol
 func (c *CommandChecker) Run(ctx context.Context) (string, error) {
 	cmd := exec.Command(c.command, c.args...)
 	var stdout, stderr bytes.Buffer
@@ -93,6 +96,7 @@ func (c *CommandChecker) Run(ctx context.Context) (string, error) {
 	}
 }
 
+// NewCommandChecker create a Command checker
 func NewCommandChecker(conf interface{}, pluginConf interface{}) (plugins.Checker, error) {
 	out, err := yaml.Marshal(conf)
 	if err != nil {

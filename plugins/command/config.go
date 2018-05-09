@@ -50,16 +50,17 @@ func (cfg *commandConfig) UnmarshalJSON(b []byte) error {
 
 	cfg.rawCommandConfig = *raw
 
-	if tmpl, err := testTemplate("CommandErrTimeout", raw.RawTemplates.ErrTimeout); err != nil {
+	var err error
+	var tmpl *template.Template
+	if tmpl, err = testTemplate("CommandErrTimeout", raw.RawTemplates.ErrTimeout); err != nil {
 		return err
-	} else {
-		cfg.templates.ErrTimeout = tmpl
 	}
-	if tmpl, err := testTemplate("CommandErrExitCode", raw.RawTemplates.ErrExitCode); err != nil {
+	cfg.templates.ErrTimeout = tmpl
+
+	if tmpl, err = testTemplate("CommandErrExitCode", raw.RawTemplates.ErrExitCode); err != nil {
 		return err
-	} else {
-		cfg.templates.ErrExitCode = tmpl
 	}
+	cfg.templates.ErrExitCode = tmpl
 
 	return nil
 }

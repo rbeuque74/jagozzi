@@ -28,14 +28,17 @@ type ProcessesChecker struct {
 	executableName string
 }
 
+// Name returns the name of the checker
 func (c *ProcessesChecker) Name() string {
 	return pluginName
 }
 
+// ServiceName returns the name of the NSCA service associated to the checker
 func (c ProcessesChecker) ServiceName() string {
 	return c.cfg.Name
 }
 
+// Run is performing the checker protocol
 func (c *ProcessesChecker) Run(ctx context.Context) (string, error) {
 	processes, err := processlib.Processes()
 	if err != nil {
@@ -97,6 +100,7 @@ func (c *ProcessesChecker) Run(ctx context.Context) (string, error) {
 	}
 }
 
+// NewProcessesChecker create a Processes checker
 func NewProcessesChecker(conf interface{}, pluginConf interface{}) (plugins.Checker, error) {
 	out, err := yaml.Marshal(conf)
 	if err != nil {

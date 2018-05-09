@@ -18,7 +18,7 @@ type httpConfig struct {
 	Timeout   time.Duration `json:"-"`
 	Warning   time.Duration `json:"-"`
 	Critical  time.Duration `json:"-"`
-	templates templates     `json:"-"`
+	templates templates
 }
 
 type rawHTTPConfig struct {
@@ -65,31 +65,32 @@ func (cfg *httpConfig) UnmarshalJSON(b []byte) error {
 	cfg.Warning = time.Duration(raw.RawWarning) * time.Millisecond
 	cfg.Critical = time.Duration(raw.RawCritical) * time.Millisecond
 
-	if tmpl, err := testTemplate("HttpErrNewHTTPRequest", raw.RawTemplates.ErrNewHTTPRequest, true, false, false); err != nil {
+	var err error
+	var tmpl *template.Template
+	if tmpl, err = testTemplate("HttpErrNewHTTPRequest", raw.RawTemplates.ErrNewHTTPRequest, true, false, false); err != nil {
 		return err
-	} else {
-		cfg.templates.ErrNewHTTPRequest = tmpl
 	}
-	if tmpl, err := testTemplate("HttpErrRequest", raw.RawTemplates.ErrRequest, true, true, false); err != nil {
+	cfg.templates.ErrNewHTTPRequest = tmpl
+
+	if tmpl, err = testTemplate("HttpErrRequest", raw.RawTemplates.ErrRequest, true, true, false); err != nil {
 		return err
-	} else {
-		cfg.templates.ErrRequest = tmpl
 	}
-	if tmpl, err := testTemplate("HttpErrStatusCode", raw.RawTemplates.ErrStatusCode, true, true, true); err != nil {
+	cfg.templates.ErrRequest = tmpl
+
+	if tmpl, err = testTemplate("HttpErrStatusCode", raw.RawTemplates.ErrStatusCode, true, true, true); err != nil {
 		return err
-	} else {
-		cfg.templates.ErrStatusCode = tmpl
 	}
-	if tmpl, err := testTemplate("HttpErrTimeoutCritical", raw.RawTemplates.ErrTimeoutCritical, true, true, true); err != nil {
+	cfg.templates.ErrStatusCode = tmpl
+
+	if tmpl, err = testTemplate("HttpErrTimeoutCritical", raw.RawTemplates.ErrTimeoutCritical, true, true, true); err != nil {
 		return err
-	} else {
-		cfg.templates.ErrTimeoutCritical = tmpl
 	}
-	if tmpl, err := testTemplate("HttpErrTimeoutWarning", raw.RawTemplates.ErrTimeoutWarning, true, true, true); err != nil {
+	cfg.templates.ErrTimeoutCritical = tmpl
+
+	if tmpl, err = testTemplate("HttpErrTimeoutWarning", raw.RawTemplates.ErrTimeoutWarning, true, true, true); err != nil {
 		return err
-	} else {
-		cfg.templates.ErrTimeoutWarning = tmpl
 	}
+	cfg.templates.ErrTimeoutWarning = tmpl
 
 	validate := validator.New()
 	if err := validate.Struct(cfg); err != nil {

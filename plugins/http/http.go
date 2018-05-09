@@ -24,10 +24,12 @@ type HTTPChecker struct {
 	cfg httpConfig
 }
 
+// Name returns the name of the checker
 func (c *HTTPChecker) Name() string {
 	return pluginName
 }
 
+// ServiceName returns the name of the NSCA service associated to the checker
 func (c HTTPChecker) ServiceName() string {
 	return c.cfg.Name
 }
@@ -47,6 +49,7 @@ func (res result) Error() error {
 	return res.Err
 }
 
+// Run is performing the checker protocol
 func (c *HTTPChecker) Run(ctx context.Context) (string, error) {
 	httpCtx, cancel := context.WithTimeout(ctx, c.cfg.Timeout)
 	defer cancel()
@@ -104,6 +107,7 @@ func (c *HTTPChecker) Run(ctx context.Context) (string, error) {
 	return "OK", nil
 }
 
+// NewHTTPChecker create a HTTP checker
 func NewHTTPChecker(conf interface{}, pluginConf interface{}) (plugins.Checker, error) {
 	out, err := yaml.Marshal(conf)
 	if err != nil {

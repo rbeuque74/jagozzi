@@ -10,7 +10,7 @@ import (
 
 func TestHTTPServer(t *testing.T) {
 	// creating HTTP server
-	srvcfg := HttpServerTimeout{
+	srvcfg := FakeTestHTTPServer{
 		StatusCode: 200,
 	}
 	shutdown := NewHTTPServer(t, srvcfg)
@@ -44,7 +44,7 @@ func TestHTTPServer(t *testing.T) {
 
 func TestHTTPServerFails(t *testing.T) {
 	// creating HTTP server
-	srvcfg := HttpServerTimeout{
+	srvcfg := FakeTestHTTPServer{
 		StatusCode: 200,
 		Sleep:      time.Millisecond * 80,
 	}
@@ -134,7 +134,7 @@ func TestHTTPServerFails(t *testing.T) {
 
 func TestHTTPServerFailsTemplating(t *testing.T) {
 	// creating HTTP server
-	srvcfg := HttpServerTimeout{
+	srvcfg := FakeTestHTTPServer{
 		StatusCode: 200,
 		Sleep:      time.Millisecond * 80,
 	}
@@ -190,7 +190,7 @@ func TestHTTPServerFailsTemplating(t *testing.T) {
 
 func TestHTTPServerFailsTemplatingJSON(t *testing.T) {
 	// creating HTTP server
-	srvcfg := HttpServerTimeout{
+	srvcfg := FakeTestHTTPServer{
 		StatusCode: 400,
 		JSONBody:   true,
 	}
