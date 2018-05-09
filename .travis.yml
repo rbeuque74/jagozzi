@@ -13,7 +13,7 @@ script:
 after_script:
   - go get -v github.com/alecthomas/gometalinter/...
   - gometalinter --install
-  - gometalinter
+  - gometalinter --enable-all
 
 after_success:
   - rm -v jagozzi

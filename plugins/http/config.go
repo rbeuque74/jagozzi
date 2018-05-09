@@ -93,11 +93,7 @@ func (cfg *httpConfig) UnmarshalJSON(b []byte) error {
 	cfg.templates.ErrTimeoutWarning = tmpl
 
 	validate := validator.New()
-	if err := validate.Struct(cfg); err != nil {
-		return err
-	}
-
-	return nil
+	return validate.Struct(cfg)
 }
 
 func testTemplate(templateName, stringTemplate string, includeErr, includeRequest, includeResponse bool) (*template.Template, error) {
