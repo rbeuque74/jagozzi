@@ -21,7 +21,8 @@ const (
 	// STATE_UNKNOWN represents a service in an unsure status
 	STATE_UNKNOWN StatusEnum = nsca.STATE_UNKNOWN
 
-	errFailedTemplate = "unable to apply jagozzi template: %s ; %s"
+	errNilTemplate    = "unable to apply nil jagozzi template"
+	errFailedTemplate = "unable to apply jagozzi template %q: %s"
 )
 
 // Result is the structure that represents a checker result
@@ -34,18 +35,15 @@ type Result struct {
 	Checker Checker
 }
 
-type RenderModel interface {
-	Error() error
-}
-
 // RenderError allow personalised rendering if checker contains a template
-func RenderError(tmpl *template.Template, model RenderModel) error {
+func RenderError(tmpl *template.Template, model interface{}) string {
 	if tmpl == nil {
-		return model.Error()
+		return errNilTemplate
 	}
+
 	buf := new(bytes.Buffer)
 	if err := tmpl.Execute(buf, model); err != nil {
-		return fmt.Errorf(errFailedTemplate, err, model.Error())
+		return fmt.Sprintf(errFailedTemplate, tmpl.Name(), err)
 	}
-	return fmt.Errorf(buf.String())
+	return buf.String()
 }

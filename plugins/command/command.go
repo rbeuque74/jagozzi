@@ -3,9 +3,9 @@ package command
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"os/exec"
+	"syscall"
 
 	"github.com/ghodss/yaml"
 	shellwords "github.com/mattn/go-shellwords"
@@ -35,11 +35,12 @@ func (c CommandChecker) ServiceName() string {
 }
 
 type result struct {
-	Cfg    commandConfig
-	Cmd    exec.Cmd
-	Stdout string
-	Stderr string
-	Err    error
+	Cfg      commandConfig
+	Cmd      exec.Cmd
+	ExitCode int
+	Stdout   string
+	Stderr   string
+	Err      error
 }
 
 func (res result) Error() error {
@@ -72,21 +73,20 @@ func (c *CommandChecker) Run(ctx context.Context) (string, error) {
 		model.Stdout = stdout.String()
 
 		if err := cmd.Process.Kill(); err != nil {
-			model.Err = fmt.Errorf("command: context expired, kill pid %q failed: %s", cmd.Process.Pid, err)
-			return "KO", plugins.RenderError(c.cfg.template, model)
+			return "KO", fmt.Errorf("command: context expired, kill pid %q failed: %s", cmd.Process.Pid, err)
 		}
-		model.Err = errors.New("command: context finished before command finished execution")
-		return "KO", plugins.RenderError(c.cfg.template, model)
+		model.Err = ctx.Err()
+		return "KO", fmt.Errorf(plugins.RenderError(c.cfg.templates.ErrTimeout, model))
 	case err := <-done:
 		model.Stderr = stderr.String()
 		model.Stdout = stdout.String()
 
 		if typedErr, ok := err.(*exec.ExitError); ok {
+			model.ExitCode = typedErr.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
 			model.Err = fmt.Errorf("%s: %s", typedErr, model.Stderr)
-			return "KO", plugins.RenderError(c.cfg.template, model)
+			return "KO", fmt.Errorf(plugins.RenderError(c.cfg.templates.ErrExitCode, model))
 		} else if err != nil {
-			model.Err = fmt.Errorf("%s: %s", err, model.Stderr)
-			return "KO", plugins.RenderError(c.cfg.template, model)
+			return "KO", fmt.Errorf("%s: %s", err, model.Stderr)
 		} else {
 			return model.Stdout, nil
 		}

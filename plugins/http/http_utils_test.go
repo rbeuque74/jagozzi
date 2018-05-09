@@ -11,6 +11,7 @@ import (
 type HttpServerTimeout struct {
 	Sleep      time.Duration
 	StatusCode int
+	JSONBody   bool
 }
 
 func (s HttpServerTimeout) ServeHTTP(respW http.ResponseWriter, req *http.Request) {
@@ -22,7 +23,11 @@ func (s HttpServerTimeout) ServeHTTP(respW http.ResponseWriter, req *http.Reques
 		respW.WriteHeader(s.StatusCode)
 	}
 
-	io.WriteString(respW, "OK\n")
+	if s.JSONBody {
+		io.WriteString(respW, "{\"message\":\"json message field\"}\n")
+	} else {
+		io.WriteString(respW, "OK\n")
+	}
 }
 
 func NewHTTPServer(t *testing.T, cfg HttpServerTimeout) func(context.Context) error {
