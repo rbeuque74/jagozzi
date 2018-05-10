@@ -22,7 +22,7 @@ type Jagozzi struct {
 func Load(cfg config.Configuration) (*Jagozzi, error) {
 	y := Jagozzi{
 		cfg:                  cfg,
-		consumerErrorChannel: make(chan error),
+		consumerErrorChannel: make(chan error, 10),
 	}
 
 	// Consumers initialisation
