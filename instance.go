@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"sync"
 
 	"github.com/rbeuque74/jagozzi/config"
 	"github.com/rbeuque74/jagozzi/consumers/nsca"
@@ -73,4 +74,23 @@ func (y Jagozzi) SendConsumers(ctx context.Context, result plugins.Result) {
 // Checkers returns the list of checkers
 func (y Jagozzi) Checkers() []plugins.Checker {
 	return y.checkers
+}
+
+// ListenForConsumersError will log every consumers errors that fails to be reported to remote notification service
+func (y Jagozzi) ListenForConsumersError(ctx context.Context, wg *sync.WaitGroup) {
+	wg.Add(1)
+	for {
+		select {
+		case err := <-y.consumerErrorChannel:
+			if err != nil {
+				log.Errorf("consumer: problem while sending to NSCA: %s", err)
+			} else {
+				log.Debug("consumer: message sent!")
+			}
+		case <-ctx.Done():
+			log.Debug("consumer: stop listening for NSCA errors")
+			wg.Done()
+			return
+		}
+	}
 }

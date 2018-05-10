@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"os"
-	"strings"
 	"sync"
 	"time"
 
@@ -25,25 +24,11 @@ var (
 
 func main() {
 	flag.Parse()
-	if logLevel != nil {
-		switch strings.ToLower(*logLevel) {
-		case "info":
-			log.SetLevel(log.InfoLevel)
-		case "warn":
-			log.SetLevel(log.WarnLevel)
-		case "debug":
-			log.SetLevel(log.DebugLevel)
-		case "error":
-			log.SetLevel(log.ErrorLevel)
-		case "fatal":
-			log.SetLevel(log.FatalLevel)
-		case "panic":
-			log.SetLevel(log.PanicLevel)
-		}
-	}
+	applyLogLevel(logLevel)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go exitSignalHandling(cancel)
+	go exitTimeout(ctx)
 
 	cfg, err := config.Load(*configFile)
 	if err != nil {
@@ -63,43 +48,17 @@ func main() {
 
 	var wg sync.WaitGroup
 
-	wg.Add(1)
-	go func() {
-		for {
-			select {
-			case err := <-yag.consumerErrorChannel:
-				if err != nil {
-					log.Errorf("consumer: problem while sending to NSCA: %s", err)
-				} else {
-					log.Info("consumer: message sent!")
-				}
-			case <-ctx.Done():
-				log.Debug("consumer: stop listening for NSCA errors")
-				wg.Done()
-				return
-			}
-		}
-	}()
+	go yag.ListenForConsumersError(ctx, &wg)
 
 	yag.runMainLoop(ctx, &wg)
 	log.Info("Received exit signal; stopping jagozzi")
-	log.Debug("main: waiting for all goroutines")
-	exitCtx, cancelFunc := context.WithTimeout(context.Background(), time.Second*2)
-	defer cancelFunc()
-	wg.Add(1)
-	exitChan := make(chan interface{}, 1)
-	go func() {
-		wg.Wait()
-		exitChan <- true
-	}()
-	select {
-	case <-exitChan:
-		log.Debug("subroutines exited")
-	case <-exitCtx.Done():
-		log.Debug("exit context timeout")
-	}
+
+	log.Debug("jagozzi: waiting for all goroutines")
+	wg.Wait()
+	log.Debug("jagozzi: subroutines exited")
+
 	yag.Unload()
-	log.Debug("main: all goroutines exited, exiting main")
+	log.Debug("jagozzi: unloading complete; exit successful")
 }
 
 func (yag Jagozzi) runMainLoop(ctx context.Context, wg *sync.WaitGroup) {
