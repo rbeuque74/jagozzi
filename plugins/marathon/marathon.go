@@ -11,7 +11,10 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const pluginName = "Marathon"
+const (
+	pluginName = "Marathon"
+	timeFormat = "2006-01-02T15:04:05.999Z07:00"
+)
 
 // MarathonChecker is a plugin to check Marathon infrastructure
 type MarathonChecker struct {
@@ -21,6 +24,8 @@ type MarathonChecker struct {
 	roundtripper *httproundtripper
 	staggedtasks map[string]time.Time
 	exitedtasks  []time.Time
+	// defaultRoundTripper is the RoundTripper that will be used by MarathonClient to perform calls to Marathon API
+	defaultRoundTripper *http.RoundTripper
 }
 
 func init() {
@@ -45,7 +50,9 @@ func NewMarathonChecker(checkerCfg interface{}, pluginCfg interface{}) (plugins.
 		marathonCfg.HTTPBasicAuthUser = pCfg.User
 		marathonCfg.HTTPBasicPassword = pCfg.Password
 	}
-	roundtripper := &httproundtripper{}
+	roundtripper := &httproundtripper{
+		defaultRoundTripper: http.DefaultTransport,
+	}
 	marathonCfg.HTTPClient = &http.Client{
 		Transport: roundtripper,
 	}
@@ -74,12 +81,13 @@ func (c MarathonChecker) ServiceName() string {
 }
 
 type httproundtripper struct {
-	ctx *context.Context
+	ctx                 *context.Context
+	defaultRoundTripper http.RoundTripper
 }
 
 func (rt httproundtripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	req = req.WithContext(*rt.ctx)
-	return http.DefaultTransport.RoundTrip(req)
+	return rt.defaultRoundTripper.RoundTrip(req)
 }
 
 // Run is performing the checker protocol
@@ -185,5 +193,5 @@ func parseMarathonDateTime(value string) (time.Time, error) {
 	if value == "" {
 		return date, nil
 	}
-	return time.Parse(time.RFC3339, value)
+	return time.Parse(timeFormat, value)
 }
