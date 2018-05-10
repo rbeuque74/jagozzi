@@ -34,7 +34,7 @@ func TestCommand(t *testing.T) {
 	defer cancelFunc1()
 	result = checker.Run(ctxRun)
 	assert.Equal(t, plugins.STATE_CRITICAL, result.Status)
-	assert.Equal(t, result.Message, "command /bin/false exited with status code 1")
+	assert.Equal(t, "command /bin/false exited with status code 1", result.Message)
 
 	// timeout
 	cfg["command"] = "/bin/sleep 2"
@@ -46,5 +46,5 @@ func TestCommand(t *testing.T) {
 	defer cancelFunc1()
 	result = checker.Run(ctxRun)
 	assert.Equal(t, plugins.STATE_CRITICAL, result.Status)
-	assert.Equal(t, result.Message, "command /bin/sleep 2 took too long to execute")
+	assert.Equal(t, "command /bin/sleep 2 took too long to execute", result.Message)
 }
