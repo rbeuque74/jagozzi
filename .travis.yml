@@ -9,8 +9,6 @@ before_script:
 script:
   - make test
   - make
-
-after_script:
   - go get -v github.com/alecthomas/gometalinter/...
   - gometalinter --install
   - gometalinter --enable-all --disable=lll
