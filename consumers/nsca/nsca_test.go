@@ -38,6 +38,9 @@ func TestConsumerSendMessage(t *testing.T) {
 	srvCh := make(chan Message, 10)
 	go NewNscaServerChannel(srvCh)
 
+	// sleeping a bit to let NSCA server start
+	time.Sleep(20 * time.Millisecond)
+
 	// creating NSCA client
 	cfg := &config.ConsumerConfiguration{}
 	cfgStr := []byte(fmt.Sprintf(`{"type":"NSCA","server":"localhost","timeout":1000,"encryption":%d,"key":"%s"}`, nsca.ENCRYPT_XOR, EncryptKey))
