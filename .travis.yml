@@ -5,12 +5,12 @@ go:
 
 before_script:
   - go get -t -v ./...
+  - go get -v github.com/alecthomas/gometalinter/...
+  - gometalinter --install
 
 script:
   - make test
   - make
-  - go get -v github.com/alecthomas/gometalinter/...
-  - gometalinter --install
   - gometalinter --enable-all --disable=lll
 
 after_success:
