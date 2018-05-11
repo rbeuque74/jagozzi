@@ -30,7 +30,7 @@ type pluginConfig struct {
 type rawPluginConfig struct {
 	RawServerURL string `json:"serverurl" default:"unix:///var/run/supervisor.sock"`
 	RPCNamespace string `json:"rpc_namespace" default:"supervisor"`
-	RawTimeout   *int64 `json:"timeout" default:"5"`
+	RawTimeout   *int64 `json:"timeout" default:"5000"`
 }
 
 func loadPluginConfiguration(conf interface{}) (pluginConfig, error) {
@@ -47,7 +47,7 @@ func loadPluginConfiguration(conf interface{}) (pluginConfig, error) {
 	}
 
 	if cfg.RawTimeout != nil {
-		cfg.Timeout = time.Duration(*cfg.RawTimeout) * time.Second
+		cfg.Timeout = time.Duration(*cfg.RawTimeout) * time.Millisecond
 	}
 
 	defaults.SetDefaults(&cfg)

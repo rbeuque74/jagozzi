@@ -43,6 +43,9 @@ func (c *SupervisorChecker) Run(ctx context.Context) plugins.Result {
 		rpcc.SetUser(username)
 		rpcc.SetPassword(password)
 	}
+	if c.pluginCfg.Timeout > 0 {
+		rpcc.SetTimeout(c.pluginCfg.Timeout)
+	}
 
 	processesStates, err := rpcc.GetAllProcessInfo()
 	if err != nil {
@@ -64,15 +67,23 @@ func (c *SupervisorChecker) Run(ctx context.Context) plugins.Result {
 		if pinfo.State != process.RUNNING {
 			return plugins.Result{
 				Status:  plugins.STATE_CRITICAL,
-				Message: fmt.Sprintf("Service %s is currently %s: %s", name, processState.String(), description),
+				Message: fmt.Sprintf("Service %q is currently %s: %s", name, processState.String(), description),
 				Checker: c,
 			}
 		} else if c.cfg.Service != nil {
 			return plugins.Result{
 				Status:  plugins.STATE_OK,
-				Message: fmt.Sprintf("Service %s is running: %s", name, description),
+				Message: fmt.Sprintf("Service %q is running: %s", name, description),
 				Checker: c,
 			}
+		}
+	}
+
+	if c.cfg.Service != nil {
+		return plugins.Result{
+			Status:  plugins.STATE_CRITICAL,
+			Message: fmt.Sprintf("Service %q not found", *c.cfg.Service),
+			Checker: c,
 		}
 	}
 

@@ -1,0 +1,14 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"checksumSHA1": "5CIl0cy1+8iBQVAE2modrrXQm44=",
+			"origin": "github.com/rbeuque74/supervisord/xmlrpcclient",
+			"path": "github.com/ochinchina/supervisord/xmlrpcclient",
+			"revision": "17328719ae83e63f5b0be05ce27c946d0644f2bc",
+			"revisionTime": "2018-05-11T11:25:44Z"
+		}
+	],
+	"rootPath": "github.com/rbeuque74/jagozzi"
+}

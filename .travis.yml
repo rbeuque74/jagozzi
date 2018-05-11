@@ -1,17 +1,19 @@
 language: go
 
+sudo: false
+
 go:
 - "1.10.x"
 
 before_script:
-  - go get -t -v ./...
-  - go get -v github.com/alecthomas/gometalinter/...
-  - go get -v golang.org/x/tools/cmd/cover
-  - go get -v github.com/mattn/goveralls
+  - go get -v -u  github.com/kardianos/govendor github.com/alecthomas/gometalinter/...  golang.org/x/tools/cmd/cover github.com/mattn/goveralls
+  - govendor sync -v
+  # -t is required because some tests have dependency that are not imported from project
+  - go get -v -t ./...
   - gometalinter --install
 
 script:
-  - go test -timeout 5s -v -covermode=count -coverprofile=coverage.out ./...
+  - go test -timeout 10s -v -covermode=count -coverprofile=coverage.out ./...
   - make
   - gometalinter --enable-all --disable=lll
 
