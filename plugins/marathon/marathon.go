@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	marathonlib "github.com/gambol99/go-marathon"
@@ -12,8 +13,10 @@ import (
 )
 
 const (
-	pluginName = "Marathon"
-	timeFormat = "2006-01-02T15:04:05.999Z07:00"
+	pluginName           = "Marathon"
+	timeFormat           = "2006-01-02T15:04:05.999Z07:00"
+	fifteenMinute        = 15 * time.Minute
+	taskFailureThreshold = 5
 )
 
 // MarathonChecker is a plugin to check Marathon infrastructure
@@ -26,6 +29,13 @@ type MarathonChecker struct {
 	exitedtasks  []time.Time
 	// defaultRoundTripper is the RoundTripper that will be used by MarathonClient to perform calls to Marathon API
 	defaultRoundTripper *http.RoundTripper
+	failedTasks         []failedTask
+	failedTasksMutex    sync.Mutex
+}
+
+type failedTask struct {
+	date   time.Time
+	taskID string
 }
 
 func init() {
@@ -127,7 +137,7 @@ func (c *MarathonChecker) Run(ctx context.Context) plugins.Result {
 		return result
 	}
 
-	if result := c.runExitedTasks(ctx); result.Status != plugins.STATE_OK {
+	if result := c.runExitedTasks(ctx, *app); result.Status != plugins.STATE_OK {
 		return result
 	}
 
@@ -163,7 +173,6 @@ func (c *MarathonChecker) runStaggedTasks(ctx context.Context, app marathonlib.A
 		}
 
 		staggedSince := time.Since(staggedDate)
-		fifteenMinute := 15 * time.Minute
 		if staggedSince > fifteenMinute {
 			return plugins.Result{
 				Status:  plugins.STATE_WARNING,
@@ -180,7 +189,59 @@ func (c *MarathonChecker) runStaggedTasks(ctx context.Context, app marathonlib.A
 	}
 }
 
-func (c *MarathonChecker) runExitedTasks(ctx context.Context) plugins.Result {
+func (c *MarathonChecker) runExitedTasks(ctx context.Context, app marathonlib.Application) plugins.Result {
+	c.failedTasksMutex.Lock()
+	defer c.failedTasksMutex.Unlock()
+	var remainingTasks []failedTask
+
+	resultOK := plugins.Result{
+		Status:  plugins.STATE_OK,
+		Message: "No threshold of exited tasks reached",
+		Checker: c,
+	}
+
+	if app.LastTaskFailure == nil {
+		c.failedTasks = remainingTasks
+		return resultOK
+	}
+
+	ltf := *app.LastTaskFailure
+	timestamp, err := parseMarathonDateTime(ltf.Timestamp)
+	if err != nil {
+		log.Error(err)
+		return resultOK
+	}
+
+	fifteenMinuteAgo := time.Now().Add(-fifteenMinute)
+	if fifteenMinuteAgo.After(timestamp) {
+		// last task failure is older than 15 min, lets move out
+		c.failedTasks = remainingTasks
+		return resultOK
+	}
+
+	for _, task := range c.failedTasks {
+		if task.taskID == ltf.TaskID {
+			continue
+		}
+		if fifteenMinuteAgo.After(task.date) {
+			continue
+		}
+		remainingTasks = append(remainingTasks, task)
+	}
+	remainingTasks = append(remainingTasks, failedTask{
+		date:   timestamp,
+		taskID: ltf.TaskID,
+	})
+
+	c.failedTasks = remainingTasks
+	if len(remainingTasks) >= taskFailureThreshold {
+		return plugins.Result{
+			Status:  plugins.STATE_WARNING,
+			Message: fmt.Sprintf("Last %d tasks failed (during last 15min): %s", taskFailureThreshold, ltf.Message),
+			Checker: c,
+		}
+	}
+
 	return plugins.Result{
 		Status:  plugins.STATE_OK,
 		Message: "OK",
