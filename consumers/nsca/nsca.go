@@ -74,5 +74,5 @@ func (consumer Consumer) Unload() {
 	}
 
 	log.Debugf("consumer: sent 'quit' information to receiver")
-	consumer.exitChannel <- true
+	close(consumer.exitChannel)
 }

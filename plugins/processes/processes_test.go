@@ -31,6 +31,24 @@ func startProcesses(t *testing.T) {
 	}
 
 	pids = append(pids, cmd.Process)
+
+	cmd = exec.Command("/bin/sleep", "13")
+
+	if err := cmd.Start(); err != nil {
+		t.Error(err)
+		t.FailNow()
+	}
+
+	pids = append(pids, cmd.Process)
+
+	cmd = exec.Command("/bin/sleep", "13")
+
+	if err := cmd.Start(); err != nil {
+		t.Error(err)
+		t.FailNow()
+	}
+
+	pids = append(pids, cmd.Process)
 }
 
 func stopProcesses(t *testing.T) {
@@ -58,6 +76,9 @@ func TestProcesses(t *testing.T) {
 	}
 	checker, err := NewProcessesChecker(cfg, nil)
 	assert.Nilf(t, err, "processes checker instantiation failed: %q", err)
+
+	assert.Equal(t, "Processes", checker.Name())
+	assert.Equal(t, "test-1", checker.ServiceName())
 
 	ctxRun, cancelFunc1 := context.WithTimeout(context.Background(), time.Second)
 	defer cancelFunc1()
@@ -114,4 +135,16 @@ func TestProcesses(t *testing.T) {
 	result = checker.Run(ctxRun)
 	assert.Equal(t, plugins.STATE_CRITICAL, result.Status)
 	assert.Equal(t, "Process /bin/sleep  is not running", result.Message, "processes bad message: %q", result.Message)
+
+	// partial args
+	cfg["args"] = "13"
+
+	checker, err = NewProcessesChecker(cfg, nil)
+	assert.Nilf(t, err, "processes checker instantiation failed: %q", err)
+
+	ctxRun, cancelFunc1 = context.WithTimeout(context.Background(), time.Second)
+	defer cancelFunc1()
+	result = checker.Run(ctxRun)
+	assert.Equal(t, plugins.STATE_WARNING, result.Status)
+	assert.Equal(t, "Process /bin/sleep 13 have too many instances running", result.Message)
 }

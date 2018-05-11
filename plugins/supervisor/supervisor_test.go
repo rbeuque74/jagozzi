@@ -149,6 +149,9 @@ func TestSupervisor(t *testing.T) {
 	checker, err := NewSupervisorChecker(cfg, pluginCfg)
 	assert.Nilf(t, err, "command checker instantiation failed: %q", err)
 
+	assert.Equal(t, "Supervisor", checker.Name())
+	assert.Equal(t, "test-1", checker.ServiceName())
+
 	ctxRun, cancelFunc1 := context.WithTimeout(context.Background(), time.Second)
 	defer cancelFunc1()
 	result := checker.Run(ctxRun)

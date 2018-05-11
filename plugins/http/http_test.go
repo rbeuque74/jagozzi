@@ -36,6 +36,9 @@ func TestHTTPServer(t *testing.T) {
 	checker, err := NewHTTPChecker(cfg, nil)
 	assert.Nilf(t, err, "http checker instantiation failed: %q", err)
 
+	assert.Equal(t, "HTTP", checker.Name())
+	assert.Equal(t, "test-1", checker.ServiceName())
+
 	ctxRun, cancelFunc1 := context.WithTimeout(context.Background(), time.Second)
 	defer cancelFunc1()
 

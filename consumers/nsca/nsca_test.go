@@ -75,7 +75,7 @@ func TestConsumerSendMessage(t *testing.T) {
 				t.Log("nsca send OK")
 			}
 			messageReceived = true
-			close(exitCh)
+			consumer.Unload()
 		case <-time.After(time.Second):
 			t.Log("timed out")
 			if !messageReceived {

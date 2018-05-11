@@ -87,7 +87,7 @@ func loadConfiguration(conf interface{}) (checkerConfig, error) {
 	}
 
 	if cfg.Service != nil && cfg.Type == "services" {
-		return cfg, fmt.Errorf("type 'servicess' and service key are incompatible")
+		return cfg, fmt.Errorf("type 'services' and service key are incompatible")
 	}
 
 	return cfg, nil

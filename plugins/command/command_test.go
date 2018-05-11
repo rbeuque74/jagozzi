@@ -18,6 +18,9 @@ func TestCommand(t *testing.T) {
 	checker, err := NewCommandChecker(cfg, nil)
 	assert.Nilf(t, err, "command checker instantiation failed: %q", err)
 
+	assert.Equal(t, "Command", checker.Name())
+	assert.Equal(t, "test-1", checker.ServiceName())
+
 	ctxRun, cancelFunc1 := context.WithTimeout(context.Background(), time.Second)
 	defer cancelFunc1()
 	result := checker.Run(ctxRun)
