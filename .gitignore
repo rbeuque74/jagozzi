@@ -15,3 +15,6 @@
 
 # vim
 *.swp
+
+# Golang vendors should not be commited (goreleaser need to have a clean git repository)
+vendor/github.com/
