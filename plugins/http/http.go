@@ -21,7 +21,8 @@ func init() {
 
 // HTTPChecker is a plugin to check HTTP service
 type HTTPChecker struct {
-	cfg httpConfig
+	cfg    httpConfig
+	client *http.Client
 }
 
 // Name returns the name of the checker
@@ -71,7 +72,11 @@ func (c *HTTPChecker) Run(ctx context.Context) plugins.Result {
 	model.Request = *req
 
 	duration := time.Now()
-	resp, err := http.DefaultClient.Do(req)
+	client := http.DefaultClient
+	if c.client != nil {
+		client = c.client
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		model.Err = err
 		err = fmt.Errorf(plugins.RenderError(c.cfg.templates.ErrRequest, model))

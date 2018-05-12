@@ -11,9 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var pids []*os.Process
-
-func startProcesses(t *testing.T) {
+func startProcesses(t *testing.T) func() {
+	var pids []*os.Process
 	cmd := exec.Command("/bin/sleep", "5", "2", "1")
 
 	if err := cmd.Start(); err != nil {
@@ -49,24 +48,24 @@ func startProcesses(t *testing.T) {
 	}
 
 	pids = append(pids, cmd.Process)
-}
 
-func stopProcesses(t *testing.T) {
-	for _, process := range pids {
-		if process == nil {
-			t.Error("process pid is nil")
-			t.FailNow()
-		}
-		if err := process.Kill(); err != nil {
-			t.Error(err)
-			t.FailNow()
+	return func() {
+		for _, process := range pids {
+			if process == nil {
+				t.Error("process pid is nil")
+				t.FailNow()
+			}
+			if err := process.Kill(); err != nil {
+				t.Error(err)
+				t.FailNow()
+			}
 		}
 	}
 }
 
 func TestProcesses(t *testing.T) {
-	startProcesses(t)
-	defer stopProcesses(t)
+	teardown := startProcesses(t)
+	defer teardown()
 
 	// creating processes checker
 	cfg := map[string]interface{}{

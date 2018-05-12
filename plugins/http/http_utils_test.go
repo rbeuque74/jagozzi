@@ -1,9 +1,9 @@
 package http
 
 import (
-	"context"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 )
@@ -30,15 +30,9 @@ func (s FakeTestHTTPServer) ServeHTTP(respW http.ResponseWriter, req *http.Reque
 	}
 }
 
-func NewHTTPServer(t *testing.T, cfg FakeTestHTTPServer) func(context.Context) error {
-	srv := http.Server{
-		Addr:    ":8080",
-		Handler: cfg,
+func NewHTTPServer(t *testing.T, serverHandler FakeTestHTTPServer) (string, http.Client, func()) {
+	ts := httptest.NewServer(serverHandler)
+	return ts.URL, *ts.Client(), func() {
+		ts.Close()
 	}
-	go func() {
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			t.Fatal(err)
-		}
-	}()
-	return srv.Shutdown
 }

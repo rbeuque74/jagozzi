@@ -63,11 +63,12 @@ directory=/tmp
 `
 )
 
-var pids []*os.Process
-var tmpfile *os.File
 var mutex sync.Once
 
-func start(t *testing.T, faulty bool) {
+func start(t *testing.T, faulty bool) func() {
+	var pids []*os.Process
+	var tmpfile *os.File
+
 	var err error
 	mutex.Do(func() {
 		cmd := exec.Command("go", "get", "-v", "github.com/ochinchina/supervisord")
@@ -105,35 +106,35 @@ func start(t *testing.T, faulty bool) {
 	}
 
 	pids = append(pids, cmd.Process)
-}
 
-func stop(t *testing.T) {
-	for _, process := range pids {
-		if process == nil {
-			t.Error("process pid is nil")
-			t.FailNow()
+	return func() {
+		for _, process := range pids {
+			if process == nil {
+				t.Error("process pid is nil")
+				t.FailNow()
+			}
+			if err := process.Kill(); err != nil {
+				t.Error(err)
+				t.FailNow()
+			}
 		}
-		if err := process.Kill(); err != nil {
-			t.Error(err)
-			t.FailNow()
+
+		if tmpfile == nil {
+			return
 		}
-	}
 
-	if tmpfile == nil {
-		return
+		os.Remove(tmpfile.Name())
+		os.Remove("/tmp/supervisord.sock")
+		os.Remove("/tmp/supervisord.log")
+		os.Remove("/tmp/supervisord.log.0")
+		os.Remove("/tmp/supervisord.pid")
 	}
-
-	os.Remove(tmpfile.Name())
-	os.Remove("/tmp/supervisord.sock")
-	os.Remove("/tmp/supervisord.log")
-	os.Remove("/tmp/supervisord.log.0")
-	os.Remove("/tmp/supervisord.pid")
 }
 
 func TestSupervisor(t *testing.T) {
 	// creating supervisor server
-	start(t, false)
-	defer stop(t)
+	teardown := start(t, false)
+	defer teardown()
 
 	time.Sleep(200 * time.Millisecond)
 
@@ -187,8 +188,8 @@ func TestSupervisor(t *testing.T) {
 
 func TestSupervisorFaulty(t *testing.T) {
 	// creating supervisor server
-	start(t, true)
-	defer stop(t)
+	teardown := start(t, true)
+	defer teardown()
 
 	// sleeping 2 second to let our supervisor process failing
 	time.Sleep(2 * time.Second)

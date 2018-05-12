@@ -14,27 +14,26 @@ func TestHTTPServer(t *testing.T) {
 	srvcfg := FakeTestHTTPServer{
 		StatusCode: 200,
 	}
-	shutdown := NewHTTPServer(t, srvcfg)
-	defer func() {
-		ctx, cancelFunc := context.WithTimeout(context.Background(), 200*time.Millisecond)
-		defer cancelFunc()
-		shutdown(ctx)
-	}()
+	url, httpclient, shutdown := NewHTTPServer(t, srvcfg)
+	defer shutdown()
 
 	time.Sleep(20 * time.Millisecond)
 
 	// creating HTTP checker
 	cfg := map[string]interface{}{
 		"type":    "request",
-		"url":     "http://localhost:8080",
+		"url":     url,
 		"method":  "GET",
 		"warn":    200,
 		"crit":    400,
 		"timeout": 450,
 		"name":    "test-1",
 	}
-	checker, err := NewHTTPChecker(cfg, nil)
+	genChecker, err := NewHTTPChecker(cfg, nil)
 	assert.Nilf(t, err, "http checker instantiation failed: %q", err)
+
+	checker := genChecker.(*HTTPChecker)
+	checker.client = &httpclient
 
 	assert.Equal(t, "HTTP", checker.Name())
 	assert.Equal(t, "test-1", checker.ServiceName())
@@ -53,27 +52,26 @@ func TestHTTPServerFails(t *testing.T) {
 		StatusCode: 200,
 		Sleep:      time.Millisecond * 80,
 	}
-	shutdown := NewHTTPServer(t, srvcfg)
-	defer func() {
-		ctx, cancelFunc := context.WithTimeout(context.Background(), 200*time.Millisecond)
-		defer cancelFunc()
-		shutdown(ctx)
-	}()
+	url, httpclient, shutdown := NewHTTPServer(t, srvcfg)
+	defer shutdown()
 
 	time.Sleep(20 * time.Millisecond)
 
 	// creating HTTP checker
 	cfg := map[string]interface{}{
 		"type":    "request",
-		"url":     "http://localhost:8080",
+		"url":     url,
 		"method":  "GET",
 		"warn":    40,
 		"crit":    200,
 		"timeout": 1000,
 		"name":    "test-1",
 	}
-	checker, err := NewHTTPChecker(cfg, nil)
+	genChecker, err := NewHTTPChecker(cfg, nil)
 	assert.Nilf(t, err, "http checker instantiation failed: %q", err)
+
+	checker := genChecker.(*HTTPChecker)
+	checker.client = &httpclient
 
 	ctxRun, cancelFunc1 := context.WithTimeout(context.Background(), time.Second)
 	defer cancelFunc1()
@@ -85,8 +83,11 @@ func TestHTTPServerFails(t *testing.T) {
 	// critical
 	cfg["warn"] = 10
 	cfg["crit"] = 50
-	checker, err = NewHTTPChecker(cfg, nil)
+	genChecker, err = NewHTTPChecker(cfg, nil)
 	assert.Nilf(t, err, "http checker instantiation failed: %q", err)
+
+	checker = genChecker.(*HTTPChecker)
+	checker.client = &httpclient
 
 	ctxRun, cancelFunc1 = context.WithTimeout(context.Background(), time.Second)
 	defer cancelFunc1()
@@ -98,8 +99,11 @@ func TestHTTPServerFails(t *testing.T) {
 
 	// bad status code
 	cfg["code"] = 400
-	checker, err = NewHTTPChecker(cfg, nil)
+	genChecker, err = NewHTTPChecker(cfg, nil)
 	assert.Nilf(t, err, "http checker instantiation failed: %q", err)
+
+	checker = genChecker.(*HTTPChecker)
+	checker.client = &httpclient
 
 	ctxRun, cancelFunc1 = context.WithTimeout(context.Background(), time.Second)
 	defer cancelFunc1()
@@ -109,22 +113,26 @@ func TestHTTPServerFails(t *testing.T) {
 
 	// bad method
 	cfg["code"] = 200
-	checker, err = NewHTTPChecker(cfg, nil)
+	genChecker, err = NewHTTPChecker(cfg, nil)
 	assert.Nilf(t, err, "http checker instantiation failed: %q", err)
 
-	httpChecker := checker.(*HTTPChecker)
-	httpChecker.cfg.Method = "http not valid method"
+	checker = genChecker.(*HTTPChecker)
+	checker.client = &httpclient
+	checker.cfg.Method = "http not valid method"
 
 	ctxRun, cancelFunc1 = context.WithTimeout(context.Background(), time.Second)
 	defer cancelFunc1()
-	result = httpChecker.Run(ctxRun)
+	result = checker.Run(ctxRun)
 	assert.Equal(t, plugins.STATE_CRITICAL, result.Status)
 	assert.Equal(t, `net/http: invalid method "http not valid method"`, result.Message)
 
 	// conn refused
 	cfg["url"] = "http://localhost:8081"
-	checker, err = NewHTTPChecker(cfg, nil)
+	genChecker, err = NewHTTPChecker(cfg, nil)
 	assert.Nilf(t, err, "http checker instantiation failed: %q", err)
+
+	checker = genChecker.(*HTTPChecker)
+	checker.client = &httpclient
 
 	ctxRun, cancelFunc1 = context.WithTimeout(context.Background(), time.Second)
 	defer cancelFunc1()
@@ -140,12 +148,8 @@ func TestHTTPServerFailsTemplating(t *testing.T) {
 		StatusCode: 200,
 		Sleep:      time.Millisecond * 80,
 	}
-	shutdown := NewHTTPServer(t, srvcfg)
-	defer func() {
-		ctx, cancelFunc := context.WithTimeout(context.Background(), 200*time.Millisecond)
-		defer cancelFunc()
-		shutdown(ctx)
-	}()
+	url, httpclient, shutdown := NewHTTPServer(t, srvcfg)
+	defer shutdown()
 
 	time.Sleep(20 * time.Millisecond)
 
@@ -156,7 +160,7 @@ func TestHTTPServerFailsTemplating(t *testing.T) {
 	}
 	cfg := map[string]interface{}{
 		"type":      "request",
-		"url":       "http://localhost:8080",
+		"url":       url,
 		"method":    "GET",
 		"warn":      10,
 		"crit":      50,
@@ -164,8 +168,11 @@ func TestHTTPServerFailsTemplating(t *testing.T) {
 		"name":      "test-1",
 		"templates": templatesCfg,
 	}
-	checker, err := NewHTTPChecker(cfg, nil)
+	genChecker, err := NewHTTPChecker(cfg, nil)
 	assert.Nilf(t, err, "http checker instantiation failed: %q", err)
+
+	checker := genChecker.(*HTTPChecker)
+	checker.client = &httpclient
 
 	ctxRun, cancelFunc1 := context.WithTimeout(context.Background(), time.Second)
 	defer cancelFunc1()
@@ -177,8 +184,11 @@ func TestHTTPServerFailsTemplating(t *testing.T) {
 
 	// bad status code
 	cfg["code"] = 400
-	checker, err = NewHTTPChecker(cfg, nil)
+	genChecker, err = NewHTTPChecker(cfg, nil)
 	assert.Nilf(t, err, "http checker instantiation failed: %q", err)
+
+	checker = genChecker.(*HTTPChecker)
+	checker.client = &httpclient
 
 	ctxRun, cancelFunc1 = context.WithTimeout(context.Background(), time.Second)
 	defer cancelFunc1()
@@ -193,12 +203,8 @@ func TestHTTPServerFailsTemplatingJSON(t *testing.T) {
 		StatusCode: 400,
 		JSONBody:   true,
 	}
-	shutdown := NewHTTPServer(t, srvcfg)
-	defer func() {
-		ctx, cancelFunc := context.WithTimeout(context.Background(), 200*time.Millisecond)
-		defer cancelFunc()
-		shutdown(ctx)
-	}()
+	url, httpclient, shutdown := NewHTTPServer(t, srvcfg)
+	defer shutdown()
 
 	time.Sleep(20 * time.Millisecond)
 
@@ -208,7 +214,7 @@ func TestHTTPServerFailsTemplatingJSON(t *testing.T) {
 	}
 	cfg := map[string]interface{}{
 		"type":      "request",
-		"url":       "http://localhost:8080",
+		"url":       url,
 		"method":    "GET",
 		"warn":      200,
 		"crit":      200,
@@ -216,8 +222,11 @@ func TestHTTPServerFailsTemplatingJSON(t *testing.T) {
 		"name":      "test-1",
 		"templates": templatesCfg,
 	}
-	checker, err := NewHTTPChecker(cfg, nil)
+	genChecker, err := NewHTTPChecker(cfg, nil)
 	assert.Nilf(t, err, "http checker instantiation failed: %q", err)
+
+	checker := genChecker.(*HTTPChecker)
+	checker.client = &httpclient
 
 	ctxRun, cancelFunc1 := context.WithTimeout(context.Background(), time.Second)
 	defer cancelFunc1()
