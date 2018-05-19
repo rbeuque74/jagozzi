@@ -18,8 +18,9 @@ import (
 )
 
 var (
-	configFile = flag.String("cfg", "./jagozzi.yml", "path to config file")
-	logLevel   = flag.String("level", "info", "verbosity level for application logs")
+	configFile  = flag.String("cfg", "./jagozzi.yml", "path to config file")
+	logLevel    = flag.String("level", "info", "verbosity level for application logs")
+	guiConsumer = flag.Bool("display", false, "set display to true if GUI need to display plugins results")
 )
 
 func main() {
@@ -47,8 +48,6 @@ func main() {
 	}
 
 	var wg sync.WaitGroup
-
-	go yag.ListenForConsumersError(ctx, &wg)
 
 	yag.runMainLoop(ctx, &wg)
 	log.Info("Received exit signal; stopping jagozzi")

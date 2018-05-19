@@ -28,6 +28,11 @@ func exitTimeout(ctx context.Context) {
 }
 
 func applyLogLevel(level *string) {
+	if guiConsumer != nil && *guiConsumer {
+		log.SetLevel(log.PanicLevel)
+		return
+	}
+
 	if level == nil {
 		return
 	}

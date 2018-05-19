@@ -2,28 +2,26 @@ package main
 
 import (
 	"context"
-	"sync"
 
 	"github.com/rbeuque74/jagozzi/config"
+	"github.com/rbeuque74/jagozzi/consumers"
+	"github.com/rbeuque74/jagozzi/consumers/gui"
 	"github.com/rbeuque74/jagozzi/consumers/nsca"
 	"github.com/rbeuque74/jagozzi/plugins"
 	log "github.com/sirupsen/logrus"
-	nscalib "github.com/syncbak-git/nsca"
 )
 
 // Jagozzi is an instance of jagozzi checker
 type Jagozzi struct {
-	cfg                  config.Configuration
-	checkers             []plugins.Checker
-	consumers            []nsca.Consumer
-	consumerErrorChannel chan error
+	cfg       config.Configuration
+	checkers  []plugins.Checker
+	consumers []consumers.Consumer
 }
 
 // Load is loading configuration from file and returns a jagozzi configuration
 func Load(cfg config.Configuration) (*Jagozzi, error) {
 	y := Jagozzi{
-		cfg:                  cfg,
-		consumerErrorChannel: make(chan error, 10),
+		cfg: cfg,
 	}
 
 	// Consumers initialisation
@@ -33,11 +31,14 @@ func Load(cfg config.Configuration) (*Jagozzi, error) {
 			continue
 		}
 
-		exitChannel := make(chan interface{})
-		messagesChannel := make(chan *nscalib.Message)
-
-		consumerInstance := nsca.New(consumer, messagesChannel, exitChannel)
+		consumerInstance := nsca.New(consumer)
 		y.consumers = append(y.consumers, consumerInstance)
+		go ListenForConsumersError(consumerInstance)
+	}
+
+	if guiConsumer != nil && *guiConsumer {
+		consumer := gui.New()
+		y.consumers = append(y.consumers, consumer)
 	}
 
 	// Pluggins initialisation
@@ -60,14 +61,17 @@ func Load(cfg config.Configuration) (*Jagozzi, error) {
 // Unload cleans all current operation/goroutine loaded by configuration and configuration childs
 func (y Jagozzi) Unload() {
 	for _, consumer := range y.consumers {
-		consumer.Unload()
+		close(consumer.ExitChannel())
 	}
 }
 
 // SendConsumers will send a NSCA message to all consumers
 func (y Jagozzi) SendConsumers(ctx context.Context, result plugins.Result) {
 	for _, consumer := range y.consumers {
-		consumer.Send(ctx, result, y.cfg.Hostname, y.consumerErrorChannel)
+		consumer.MessageChannel() <- consumers.ResultWithHostname{
+			Result:   result,
+			Hostname: y.cfg.Hostname,
+		}
 	}
 }
 
@@ -77,19 +81,19 @@ func (y Jagozzi) Checkers() []plugins.Checker {
 }
 
 // ListenForConsumersError will log every consumers errors that fails to be reported to remote notification service
-func (y Jagozzi) ListenForConsumersError(ctx context.Context, wg *sync.WaitGroup) {
-	wg.Add(1)
+func ListenForConsumersError(c consumers.Consumer) {
+	errors := c.ErrorChannel()
+	exit := c.ExitChannel()
 	for {
 		select {
-		case err := <-y.consumerErrorChannel:
+		case err := <-errors:
 			if err != nil {
-				log.Errorf("consumer: problem while sending to NSCA: %s", err)
+				log.Errorf("consumer: problem while sending to consumer: %s", err)
 			} else {
 				log.Debug("consumer: message sent!")
 			}
-		case <-ctx.Done():
-			log.Debug("consumer: stop listening for NSCA errors")
-			wg.Done()
+		case <-exit:
+			log.Debug("consumer: stop listening for errors")
 			return
 		}
 	}

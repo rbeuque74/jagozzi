@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/rbeuque74/jagozzi/config"
+	"github.com/rbeuque74/jagozzi/consumers"
 	"github.com/rbeuque74/jagozzi/plugins"
 	"github.com/syncbak-git/nsca"
 )
@@ -46,13 +47,7 @@ func TestConsumerSendMessage(t *testing.T) {
 	cfgStr := []byte(fmt.Sprintf(`{"type":"NSCA","server":"localhost","timeout":1000,"encryption":%d,"key":"%s"}`, nsca.ENCRYPT_XOR, EncryptKey))
 	json.Unmarshal(cfgStr, cfg)
 
-	msgCh := make(chan *nsca.Message, 10)
-	exitCh := make(chan interface{}, 10)
-	consumer := New(*cfg, msgCh, exitCh)
-
-	// sending message
-	ctx, cancelFunc := context.WithTimeout(context.Background(), time.Second)
-	defer cancelFunc()
+	consumer := New(*cfg)
 
 	res := plugins.Result{
 		Status:  plugins.STATE_CRITICAL,
@@ -62,27 +57,29 @@ func TestConsumerSendMessage(t *testing.T) {
 		},
 	}
 
-	errCh := make(chan error, 10)
-	consumer.Send(ctx, res, "hostname-example-1", errCh)
+	consumer.MessageChannel() <- consumers.ResultWithHostname{
+		Result:   res,
+		Hostname: "hostname-example-1",
+	}
 
 	messageReceived := false
 	for {
 		select {
-		case err := <-errCh:
+		case err := <-consumer.ErrorChannel():
 			if err != nil {
 				t.Fatalf("err channel is not empty: %q", err)
 			} else {
 				t.Log("nsca send OK")
 			}
 			messageReceived = true
-			consumer.Unload()
+			close(consumer.ExitChannel())
 		case <-time.After(time.Second):
 			t.Log("timed out")
 			if !messageReceived {
 				t.Fatal("timeout and message not received")
 			}
 			return
-		case <-exitCh:
+		case <-consumer.ExitChannel():
 			t.Log("finished")
 			return
 		}
