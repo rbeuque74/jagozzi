@@ -23,6 +23,14 @@ jagozzi can be installed using this command:
 go install github.com/rbeuque74/jagozzi
 ```
 
+Screenshot
+----------
+
+When jagozzi is sstarted with `-display` option, a "display" consumer is created and render status of configurated checks.
+
+[![Display mode](https://image.ibb.co/jmeS6T/rsz_capture_d_cran_de_2018_05_20_00_18_00.png)](https://image.ibb.co/jmeS6T/rsz_capture_d_cran_de_2018_05_20_00_18_00.png)
+
+
 License
 -------
 

@@ -90,11 +90,8 @@ func (yag Jagozzi) runChecker(ctx context.Context, checker plugins.Checker, wg *
 		return
 	} else if ctx.Err() != nil && ctx.Err() == context.DeadlineExceeded {
 		log.Errorf("jagozzi: context timed out while running checker: %s", checker.Name())
-		ctxConsumer, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
-		defer cancel()
-		ctx = ctxConsumer
 	}
 
 	log.Debugf("checker: result was %q", result.Message)
-	yag.SendConsumers(ctx, result)
+	yag.SendConsumers(result)
 }

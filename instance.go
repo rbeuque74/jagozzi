@@ -1,8 +1,6 @@
 package main
 
 import (
-	"context"
-
 	"github.com/rbeuque74/jagozzi/config"
 	"github.com/rbeuque74/jagozzi/consumers"
 	"github.com/rbeuque74/jagozzi/consumers/gui"
@@ -66,7 +64,7 @@ func (y Jagozzi) Unload() {
 }
 
 // SendConsumers will send a NSCA message to all consumers
-func (y Jagozzi) SendConsumers(ctx context.Context, result plugins.Result) {
+func (y Jagozzi) SendConsumers(result plugins.Result) {
 	for _, consumer := range y.consumers {
 		consumer.MessageChannel() <- consumers.ResultWithHostname{
 			Result:   result,
