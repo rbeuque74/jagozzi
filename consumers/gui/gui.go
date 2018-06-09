@@ -85,7 +85,7 @@ func draw(msgs map[string]consumers.ResultWithHostname) {
 	nbMsgs := len(msgs)
 	eof := "\n"
 	i := 0
-	for _ = range msgs {
+	for range msgs {
 		tm.Println(clearLine)
 	}
 	tm.MoveCursor(1, 1)

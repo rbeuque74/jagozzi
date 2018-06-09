@@ -28,13 +28,13 @@ var mockApp = app{
 		TasksUnhealthy: 0,
 		Instances:      intPtr(2),
 		Tasks: []*marathonlib.Task{
-			&marathonlib.Task{
+			{
 				ID:        "app1",
 				AppID:     "/production/app",
 				StagedAt:  time.Now().UTC().Add(-3 * time.Hour).Format(timeFormat),
 				StartedAt: time.Now().UTC().Add(-3 * time.Hour).Format(timeFormat),
 			},
-			&marathonlib.Task{
+			{
 				ID:        "app2",
 				AppID:     "/production/app",
 				StagedAt:  time.Now().UTC().Add(-4 * time.Hour).Format(timeFormat),
