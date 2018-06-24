@@ -21,6 +21,7 @@ var (
 	configFile  = flag.String("cfg", "./jagozzi.yml", "path to config file")
 	logLevel    = flag.String("level", "info", "verbosity level for application logs")
 	guiConsumer = flag.Bool("display", false, "set display to true if GUI need to display plugins results")
+	oneShot     = flag.Bool("oneShot", false, "run jagozzi one time, no periodic checker (useful when used on cron)")
 )
 
 func main() {
@@ -49,39 +50,45 @@ func main() {
 
 	var wg sync.WaitGroup
 
-	yag.runMainLoop(ctx, &wg)
+	tearDown := yag.runMainLoop(ctx, &wg)
 	log.Info("Received exit signal; stopping jagozzi")
 
 	log.Debug("jagozzi: waiting for all goroutines")
 	wg.Wait()
 	log.Debug("jagozzi: subroutines exited")
+	tearDown()
 
 	yag.Unload()
 	log.Debug("jagozzi: unloading complete; exit successful")
 }
 
-func (yag Jagozzi) runMainLoop(ctx context.Context, wg *sync.WaitGroup) {
+func (yag Jagozzi) runMainLoop(ctx context.Context, wg *sync.WaitGroup) func() {
 	ticker := time.NewTicker(yag.cfg.Periodicity)
 	defer ticker.Stop()
+	var cancelFuncs []context.CancelFunc
 
 	for {
 		select {
 		case t := <-ticker.C:
 			log.Println("Running checkers: ", t)
 			loopCtx, cancelFunc := context.WithTimeout(ctx, yag.cfg.Periodicity*time.Duration(2))
-			defer cancelFunc()
+			cancelFuncs = append(cancelFuncs, cancelFunc)
 			for _, checker := range yag.Checkers() {
+				wg.Add(1)
 				go yag.runChecker(loopCtx, checker, wg)
 			}
 		case <-ctx.Done():
 			log.Println("main context closed")
-			return
+			return tearDownLoop(cancelFuncs)
 		}
+		if *oneShot {
+			return tearDownLoop(cancelFuncs)
+		}
+
 	}
 }
 
 func (yag Jagozzi) runChecker(ctx context.Context, checker plugins.Checker, wg *sync.WaitGroup) {
-	wg.Add(1)
 	defer wg.Done()
 	result := checker.Run(ctx)
 

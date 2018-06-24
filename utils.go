@@ -52,3 +52,11 @@ func applyLogLevel(level *string) {
 		log.SetLevel(log.PanicLevel)
 	}
 }
+
+func tearDownLoop(cancelFuncs []context.CancelFunc) func() {
+	return func() {
+		for _, f := range cancelFuncs {
+			f()
+		}
+	}
+}
