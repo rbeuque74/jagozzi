@@ -13,11 +13,11 @@ type checkerConfig struct {
 }
 
 type rawCheckerConfig struct {
+	config.GenericPluginConfiguration
 	Type     string `json:"type" validate:"required"`
 	ID       string `json:"id" validate:"required"`
 	Warning  int64  `json:"warn"`
 	Critical int64  `json:"crit"`
-	Name     string `json:"name" validate:"required"`
 }
 
 type pluginConfig struct {

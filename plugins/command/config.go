@@ -13,9 +13,9 @@ import (
 )
 
 type rawCommandConfig struct {
+	config.GenericPluginConfiguration
 	Command      string       `json:"command" validate:"required"`
 	Type         string       `json:"type"`
-	Name         string       `json:"name" validate:"required"`
 	RawTemplates rawTemplates `json:"templates"`
 }
 

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"sync"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -15,15 +16,11 @@ var launchLog sync.Once
 // ErrUnknownCheckerType is the error returned when the factory can't create a checker because type is not registered
 var ErrUnknownCheckerType = errors.New("Unknown checker name")
 
-// WithServiceName concerns configuration type that is capable to perform a lookup on a ServiceName
-type WithServiceName interface {
-	ServiceName() string
-}
-
 // Checker is the interface that allow to perform checks
 type Checker interface {
-	WithServiceName
 	Name() string
+	ServiceName() string
+	Periodicity() *time.Duration
 	Run(context.Context) Result
 }
 

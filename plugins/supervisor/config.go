@@ -16,8 +16,8 @@ type checkerConfig struct {
 }
 
 type rawCheckerConfig struct {
+	config.GenericPluginConfiguration
 	Type    string  `json:"type" validate:"required,eq=service|eq=services"`
-	Name    string  `json:"name" validate:"required"`
 	Service *string `json:"service"`
 }
 

@@ -66,14 +66,25 @@ func (yag Jagozzi) runMainLoop(ctx context.Context, wg *sync.WaitGroup) func() {
 	ticker := time.NewTicker(yag.cfg.Periodicity)
 	defer ticker.Stop()
 	var cancelFuncs []context.CancelFunc
+	var first time.Time
 
 	for {
 		select {
 		case t := <-ticker.C:
+			var since time.Duration
+			if first.IsZero() {
+				first = t
+			} else {
+				since = time.Since(first).Truncate(time.Millisecond)
+			}
 			log.Println("Running checkers: ", t)
 			loopCtx, cancelFunc := context.WithTimeout(ctx, yag.cfg.Periodicity*time.Duration(2))
 			cancelFuncs = append(cancelFuncs, cancelFunc)
 			for _, checker := range yag.Checkers() {
+				if checker.Periodicity() != nil && since.Nanoseconds()%checker.Periodicity().Nanoseconds() != 0 {
+					log.WithField("checker", checker.Name()).Debugf("skipped as periodicity not aligned: %s", since)
+					continue
+				}
 				wg.Add(1)
 				go yag.runChecker(loopCtx, checker, wg)
 			}

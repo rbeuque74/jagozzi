@@ -22,6 +22,7 @@ type httpConfig struct {
 }
 
 type rawHTTPConfig struct {
+	config.GenericPluginConfiguration
 	Type         string       `json:"type"`
 	URL          string       `json:"url" validate:"required"`
 	VerifyCACRT  bool         `json:"verify_ca_crt"`
@@ -31,7 +32,6 @@ type rawHTTPConfig struct {
 	RawTimeout   int64        `json:"timeout"`
 	RawWarning   int64        `json:"warn"`
 	RawCritical  int64        `json:"crit"`
-	Name         string       `json:"name" validate:"required"`
 	RawTemplates rawTemplates `json:"templates"`
 }
 

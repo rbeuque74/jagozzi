@@ -6,10 +6,10 @@ import (
 )
 
 type rawProcessesConfig struct {
+	config.GenericPluginConfiguration
 	Command  string `json:"exec" validate:"required"`
 	Args     string `json:"args"`
 	Type     string `json:"type"`
-	Name     string `json:"name" validate:"required"`
 	Warning  int64  `json:"warn"`
 	Critical int64  `json:"crit"`
 }

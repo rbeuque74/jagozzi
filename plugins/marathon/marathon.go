@@ -90,6 +90,11 @@ func (c MarathonChecker) ServiceName() string {
 	return c.cfg.ServiceName()
 }
 
+// Periodicity returns the delay between two checks
+func (c MarathonChecker) Periodicity() *time.Duration {
+	return c.cfg.Periodicity()
+}
+
 type httproundtripper struct {
 	ctx                 *context.Context
 	defaultRoundTripper http.RoundTripper

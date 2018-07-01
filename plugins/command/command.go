@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os/exec"
 	"syscall"
+	"time"
 
 	"github.com/ghodss/yaml"
 	shellwords "github.com/mattn/go-shellwords"
@@ -34,6 +35,11 @@ func (c CommandChecker) Name() string {
 // ServiceName returns the name of the NSCA service associated to the checker
 func (c CommandChecker) ServiceName() string {
 	return c.cfg.Name
+}
+
+// Periodicity returns the delay between two checks
+func (c CommandChecker) Periodicity() *time.Duration {
+	return c.cfg.Periodicity()
 }
 
 type result struct {

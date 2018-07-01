@@ -35,6 +35,11 @@ func (c HTTPChecker) ServiceName() string {
 	return c.cfg.Name
 }
 
+// Periodicity returns the delay between two checks
+func (c HTTPChecker) Periodicity() *time.Duration {
+	return c.cfg.Periodicity()
+}
+
 // result is the model used by HTTP checker to apply template on
 type result struct {
 	Cfg          httpConfig

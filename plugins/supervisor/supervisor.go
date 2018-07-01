@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/ochinchina/supervisord/process"
 	"github.com/ochinchina/supervisord/xmlrpcclient"
@@ -32,6 +33,11 @@ func (c SupervisorChecker) Name() string {
 // ServiceName returns the name of the NSCA service associated to the checker
 func (c SupervisorChecker) ServiceName() string {
 	return c.cfg.Name
+}
+
+// Periodicity returns the delay between two checks
+func (c SupervisorChecker) Periodicity() *time.Duration {
+	return c.cfg.Periodicity()
 }
 
 // Run is performing the checker protocol

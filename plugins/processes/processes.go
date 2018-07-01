@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"path"
 	"path/filepath"
+	"time"
 
 	"github.com/ghodss/yaml"
 	processlib "github.com/mitchellh/go-ps"
@@ -36,6 +37,11 @@ func (c ProcessesChecker) Name() string {
 // ServiceName returns the name of the NSCA service associated to the checker
 func (c ProcessesChecker) ServiceName() string {
 	return c.cfg.Name
+}
+
+// Periodicity returns the delay between two checks
+func (c ProcessesChecker) Periodicity() *time.Duration {
+	return c.cfg.Periodicity()
 }
 
 // Run is performing the checker protocol

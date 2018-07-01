@@ -1,6 +1,8 @@
 package config
 
 import (
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -69,4 +71,42 @@ type PluginConfiguration struct {
 	Config interface{} `json:"config,omitempty"`
 	// Checks is the list of all checks that plugin will run
 	Checks []interface{} `json:"checks"`
+}
+
+// GenericPluginConfiguration is a generic plugin configuration
+type GenericPluginConfiguration struct {
+	Name            string        `json:"name" validate:"required"`
+	PeriodicityJSON *jsonDuration `json:"periodicity"`
+}
+
+type jsonDuration time.Duration
+
+// Periodicity returns the proper Periodicity as a time.Duration
+func (c *GenericPluginConfiguration) Periodicity() *time.Duration {
+	if c.PeriodicityJSON == nil {
+		return nil
+	}
+
+	dur := time.Duration(*c.PeriodicityJSON)
+	return &dur
+}
+
+func (d *jsonDuration) UnmarshalJSON(b []byte) error {
+	str := string(b)
+	durationInt, err := strconv.ParseUint(str, 10, 64)
+	var duration time.Duration
+	if err == nil {
+		duration = time.Duration(durationInt) * time.Second
+		*d = (jsonDuration)(duration)
+		return nil
+	}
+
+	str = strings.Replace(str, "\"", "", 2)
+	duration, err = time.ParseDuration(str)
+	if err != nil {
+		return err
+	}
+
+	*d = (jsonDuration)(duration)
+	return nil
 }
