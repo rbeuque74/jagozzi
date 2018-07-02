@@ -17,6 +17,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// nolint: gochecknoglobals
 var (
 	configFile  = flag.String("cfg", "./jagozzi.yml", "path to config file")
 	logLevel    = flag.String("level", "info", "verbosity level for application logs")

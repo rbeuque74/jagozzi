@@ -25,6 +25,10 @@ func (fc fakeChecker) ServiceName() string {
 	return "fake-service-name"
 }
 
+func (fc fakeChecker) Periodicity() *time.Duration {
+	return nil
+}
+
 func (fc fakeChecker) Run(ctx context.Context) plugins.Result {
 	fc.t.Fatal("fake checker should not run")
 	return plugins.Result{

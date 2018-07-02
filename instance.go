@@ -19,6 +19,7 @@ type Jagozzi struct {
 }
 
 // Load is loading configuration from file and returns a jagozzi configuration
+// nolint: gocyclo
 func Load(cfg config.Configuration) (*Jagozzi, error) {
 	y := Jagozzi{
 		cfg: cfg,
