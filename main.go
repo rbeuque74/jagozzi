@@ -13,6 +13,7 @@ import (
 	_ "github.com/rbeuque74/jagozzi/plugins/http"
 	_ "github.com/rbeuque74/jagozzi/plugins/marathon"
 	_ "github.com/rbeuque74/jagozzi/plugins/processes"
+	_ "github.com/rbeuque74/jagozzi/plugins/ssl"
 	_ "github.com/rbeuque74/jagozzi/plugins/supervisor"
 	log "github.com/sirupsen/logrus"
 )
