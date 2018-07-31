@@ -23,11 +23,13 @@ var (
 	logLevel    = flag.String("level", "info", "verbosity level for application logs")
 	guiConsumer = flag.Bool("display", false, "set display to true if GUI need to display plugins results")
 	oneShot     = flag.Bool("oneShot", false, "run jagozzi one time, no periodic checker (useful when used on cron)")
+	version     string
 )
 
 func main() {
 	flag.Parse()
 	applyLogLevel(logLevel)
+	log.Infof("jagozzi - %s", version)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go exitSignalHandling(cancel)
