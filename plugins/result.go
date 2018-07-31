@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"text/template"
 
-	"github.com/syncbak-git/nsca"
+	"github.com/rbeuque74/nsca"
 )
 
 // StatusEnum corresponds to all status for a Consumer message

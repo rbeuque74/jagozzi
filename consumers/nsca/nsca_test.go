@@ -10,7 +10,7 @@ import (
 	"github.com/rbeuque74/jagozzi/config"
 	"github.com/rbeuque74/jagozzi/consumers"
 	"github.com/rbeuque74/jagozzi/plugins"
-	"github.com/syncbak-git/nsca"
+	"github.com/rbeuque74/nsca"
 )
 
 type fakeChecker struct {

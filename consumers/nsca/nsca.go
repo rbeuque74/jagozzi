@@ -6,8 +6,8 @@ import (
 
 	"github.com/rbeuque74/jagozzi/config"
 	"github.com/rbeuque74/jagozzi/consumers"
+	"github.com/rbeuque74/nsca"
 	log "github.com/sirupsen/logrus"
-	"github.com/syncbak-git/nsca"
 )
 
 // Consumer is the representation of a NSCA consumer
@@ -37,6 +37,7 @@ func New(cfg config.ConsumerConfiguration) Consumer {
 		EncryptionMethod: int(cfg.Encryption),
 		Password:         cfg.Key,
 		Timeout:          cfg.Timeout,
+		NoKeepAlive:      true,
 	}
 
 	log.Infof("consumer: starting NSCA server to %s:%d", cfg.Server, cfg.Port)
