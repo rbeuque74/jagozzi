@@ -44,7 +44,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	yag, err := Load(*cfg)
+	jag, err := Load(*cfg)
 	if err != nil {
 		log.Fatal(err)
 	} else if ctx.Err() != nil {
@@ -54,7 +54,7 @@ func main() {
 
 	var wg sync.WaitGroup
 
-	tearDown := yag.runMainLoop(ctx, &wg)
+	tearDown := jag.runMainLoop(ctx, &wg)
 	log.Info("Received exit signal; stopping jagozzi")
 
 	log.Debug("jagozzi: waiting for all goroutines")
@@ -62,12 +62,12 @@ func main() {
 	log.Debug("jagozzi: subroutines exited")
 	tearDown()
 
-	yag.Unload()
+	jag.Unload()
 	log.Debug("jagozzi: unloading complete; exit successful")
 }
 
-func (yag Jagozzi) runMainLoop(ctx context.Context, wg *sync.WaitGroup) func() {
-	ticker := time.NewTicker(yag.cfg.Periodicity)
+func (jag Jagozzi) runMainLoop(ctx context.Context, wg *sync.WaitGroup) func() {
+	ticker := time.NewTicker(jag.cfg.Periodicity)
 	defer ticker.Stop()
 	var cancelFuncs []context.CancelFunc
 	var first time.Time
@@ -82,15 +82,15 @@ func (yag Jagozzi) runMainLoop(ctx context.Context, wg *sync.WaitGroup) func() {
 				since = time.Since(first).Truncate(time.Millisecond)
 			}
 			log.Println("Running checkers: ", t)
-			loopCtx, cancelFunc := context.WithTimeout(ctx, yag.cfg.Periodicity*time.Duration(2))
+			loopCtx, cancelFunc := context.WithTimeout(ctx, jag.cfg.Periodicity*time.Duration(2))
 			cancelFuncs = append(cancelFuncs, cancelFunc)
-			for _, checker := range yag.Checkers() {
+			for _, checker := range jag.Checkers() {
 				if checker.Periodicity() != nil && since.Nanoseconds()%checker.Periodicity().Nanoseconds() != 0 {
 					log.WithField("checker", checker.Name()).Debugf("skipped as periodicity not aligned: %s", since)
 					continue
 				}
 				wg.Add(1)
-				go yag.runChecker(loopCtx, checker, wg)
+				go jag.runChecker(loopCtx, checker, wg)
 			}
 		case <-ctx.Done():
 			log.Println("main context closed")
@@ -103,7 +103,7 @@ func (yag Jagozzi) runMainLoop(ctx context.Context, wg *sync.WaitGroup) func() {
 	}
 }
 
-func (yag Jagozzi) runChecker(ctx context.Context, checker plugins.Checker, wg *sync.WaitGroup) {
+func (jag Jagozzi) runChecker(ctx context.Context, checker plugins.Checker, wg *sync.WaitGroup) {
 	defer wg.Done()
 	result := checker.Run(ctx)
 
@@ -115,5 +115,5 @@ func (yag Jagozzi) runChecker(ctx context.Context, checker plugins.Checker, wg *
 	}
 
 	log.Debugf("checker: result was %q", result.Message)
-	yag.SendConsumers(result)
+	jag.SendConsumers(result)
 }
