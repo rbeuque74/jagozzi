@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-
 	"github.com/rbeuque74/jagozzi/config"
 	"github.com/rbeuque74/jagozzi/consumers"
 	"github.com/rbeuque74/jagozzi/consumers/gui"
@@ -53,9 +51,6 @@ func Load(cfg config.Configuration) (*Jagozzi, error) {
 				return nil, err
 			}
 
-			if checker.Periodicity() != nil && *checker.Periodicity() < y.cfg.Periodicity {
-				return nil, fmt.Errorf("%s config: periodicity %s is smaller than global periodicity %s", plugin.Type, *checker.Periodicity(), y.cfg.Periodicity)
-			}
 			y.checkers = append(y.checkers, checker)
 		}
 	}

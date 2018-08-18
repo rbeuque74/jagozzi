@@ -12,11 +12,18 @@ import (
 )
 
 // exitSignalHandling wait for interrump signal to gracefully shutdown the server with a timeout configured inside context
-func exitSignalHandling(cancel context.CancelFunc) {
+func exitSignalHandling(cancel context.CancelFunc) <-chan interface{} {
 	quit := make(chan os.Signal, 10)
+	exiting := make(chan interface{})
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGQUIT, syscall.SIGTERM)
-	<-quit
-	cancel()
+	go func() {
+		<-quit
+		log.Info("Received exit signal; stopping jagozzi")
+		exiting <- nil
+		cancel()
+	}()
+
+	return exiting
 }
 
 func exitTimeout(ctx context.Context) {
@@ -50,13 +57,5 @@ func applyLogLevel(level *string) {
 		log.SetLevel(log.FatalLevel)
 	case "panic":
 		log.SetLevel(log.PanicLevel)
-	}
-}
-
-func tearDownLoop(cancelFuncs []context.CancelFunc) func() {
-	return func() {
-		for _, f := range cancelFuncs {
-			f()
-		}
 	}
 }

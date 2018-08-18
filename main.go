@@ -33,7 +33,7 @@ func main() {
 	log.Infof("jagozzi - %s", version)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	go exitSignalHandling(cancel)
+	exiting := exitSignalHandling(cancel)
 	go exitTimeout(ctx)
 
 	cfg, err := config.Load(*configFile)
@@ -54,61 +54,85 @@ func main() {
 
 	var wg sync.WaitGroup
 
-	tearDown := jag.runMainLoop(ctx, &wg)
-	log.Info("Received exit signal; stopping jagozzi")
+	jag.runMainLoop(ctx, &wg)
+	if !*oneShot {
+		<-exiting
+	}
 
 	log.Debug("jagozzi: waiting for all goroutines")
 	wg.Wait()
 	log.Debug("jagozzi: subroutines exited")
-	tearDown()
 
 	jag.Unload()
 	log.Debug("jagozzi: unloading complete; exit successful")
 }
 
-func (jag Jagozzi) runMainLoop(ctx context.Context, wg *sync.WaitGroup) func() {
-	ticker := time.NewTicker(jag.cfg.Periodicity)
-	defer ticker.Stop()
-	var cancelFuncs []context.CancelFunc
-	var first time.Time
+func (jag Jagozzi) runMainLoop(ctx context.Context, wg *sync.WaitGroup) {
+	checkersPerPeridicity := map[time.Duration][]plugins.Checker{}
+	for _, checker := range jag.Checkers() {
+		periodicity := jag.cfg.Periodicity
+		if p := checker.Periodicity(); p != nil {
+			periodicity = *p
+		}
 
-	for {
-		select {
-		case t := <-ticker.C:
-			var since time.Duration
-			if first.IsZero() {
-				first = t
-			} else {
-				since = time.Since(first).Truncate(time.Millisecond)
-			}
-			log.Println("Running checkers: ", t)
-			loopCtx, cancelFunc := context.WithTimeout(ctx, jag.cfg.Periodicity*time.Duration(2))
-			cancelFuncs = append(cancelFuncs, cancelFunc)
-			for _, checker := range jag.Checkers() {
-				if checker.Periodicity() != nil && since.Nanoseconds()%checker.Periodicity().Nanoseconds() != 0 {
-					log.WithField("checker", checker.Name()).Debugf("skipped as periodicity not aligned: %s", since)
-					continue
+		var currentArray []plugins.Checker
+		if array, ok := checkersPerPeridicity[periodicity]; ok {
+			currentArray = array
+		}
+		currentArray = append(currentArray, checker)
+		checkersPerPeridicity[periodicity] = currentArray
+	}
+
+	for loopPeriodicity, loopCheckers := range checkersPerPeridicity {
+		periodicity := loopPeriodicity
+		checkers := loopCheckers
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			timeout := periodicity * time.Duration(2)
+			cancellationTimeout := timeout + time.Second
+
+			ticker := time.NewTicker(periodicity)
+			defer ticker.Stop()
+			log := log.WithField("periodicity", periodicity.String())
+			log.Debug("loop: starting")
+
+			for {
+				select {
+				case t := <-ticker.C:
+					log.Debugf("triggered: %s", t)
+					// context should never be cancelled as we are canceling the parent
+					loopCtx, cancelCtx := context.WithTimeout(ctx, timeout)
+					time.AfterFunc(cancellationTimeout, func() {
+						cancelCtx()
+					})
+
+					for _, checker := range checkers {
+						wg.Add(1)
+						go jag.runChecker(loopCtx, checker, wg)
+					}
+				case <-ctx.Done():
+					log.Debug("loop: main context closed, exiting")
+					return
 				}
-				wg.Add(1)
-				go jag.runChecker(loopCtx, checker, wg)
+				if *oneShot {
+					log.Debug("loop: one shot activated, exiting")
+					return
+				}
 			}
-		case <-ctx.Done():
-			log.Println("main context closed")
-			return tearDownLoop(cancelFuncs)
-		}
-		if *oneShot {
-			return tearDownLoop(cancelFuncs)
-		}
-
+		}()
 	}
 }
 
 func (jag Jagozzi) runChecker(ctx context.Context, checker plugins.Checker, wg *sync.WaitGroup) {
 	defer wg.Done()
+	log := log.WithFields(log.Fields{"name": checker.Name(), "serviceName": checker.ServiceName()})
+	log.Debugf("perform check")
 	result := checker.Run(ctx)
 
 	if ctx.Err() != nil && ctx.Err() == context.Canceled {
-		log.Infof("jagozzi: context cancelled while running checker: %s", checker.Name())
+		log.Debug("jagozzi: context cancelled while running checker")
 		return
 	} else if ctx.Err() != nil && ctx.Err() == context.DeadlineExceeded {
 		log.Errorf("jagozzi: context timed out while running checker: %s", checker.Name())
