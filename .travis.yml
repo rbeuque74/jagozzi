@@ -6,25 +6,28 @@ go:
 - "1.10.x"
 
 env:
-  - DEP_VERSION="0.5.0"
+  - DEP_VERSION="0.5.0" SUPERVISOR_VERSION="0.5"
 
 before_install:
   # Download the binary to bin folder in $GOPATH
-  - curl -L -s https://github.com/golang/dep/releases/download/v${DEP_VERSION}/dep-linux-amd64 -o $GOPATH/bin/dep
+  - curl -L -s --fail https://github.com/golang/dep/releases/download/v${DEP_VERSION}/dep-linux-amd64 -o $GOPATH/bin/dep
   # Make the binary executable
   - chmod +x $GOPATH/bin/dep
 
 install:
-  - dep ensure
+  - dep ensure -v
   - go get -v -u github.com/alecthomas/gometalinter/...  golang.org/x/tools/cmd/cover github.com/mattn/goveralls
   # -t is required because some tests have dependency that are not imported from project
   #- go get -v -t ./...
   - gometalinter --install
+  # we need supervisord installed for tests
+  - curl -L -s --fail https://github.com/ochinchina/supervisord/releases/download/v${SUPERVISOR_VERSION}/supervisord_${SUPERVISOR_VERSION}_linux_amd64 -o $GOPATH/bin/supervisord
+  - chmod +x $GOPATH/bin/supervisord
 
 script:
-  - go test -timeout 10s -v -covermode=count -coverprofile=coverage.out ./...
+  - make test-coverage
   - make
-  - gometalinter --enable-all --disable=lll
+  - make gometalinter
 
 after_script:
   - goveralls -coverprofile=coverage.out -service=travis-ci -repotoken $COVERALLS_TOKEN

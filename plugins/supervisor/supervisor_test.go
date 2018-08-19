@@ -6,7 +6,6 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	"sync"
 	"testing"
 	"time"
 
@@ -63,20 +62,11 @@ directory=/tmp
 `
 )
 
-var mutex sync.Once
-
 func start(t *testing.T, faulty bool) func() {
 	var pids []*os.Process
 	var tmpfile *os.File
 
 	var err error
-	mutex.Do(func() {
-		cmd := exec.Command("go", "get", "-v", "github.com/ochinchina/supervisord")
-		if err = cmd.Run(); err != nil {
-			t.Error(err)
-			t.FailNow()
-		}
-	})
 
 	content := []byte(supervisordConfig)
 	if faulty {
