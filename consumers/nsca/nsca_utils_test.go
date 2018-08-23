@@ -11,19 +11,13 @@ const (
 	EncryptKey = "toto"
 )
 
-type Message nsrv.DataPacket
-
-func NewNscaServerChannel(ch chan<- Message) {
+func NewNscaServerChannel(ch chan<- nsrv.DataPacket) {
 	cfg := nsrv.NewConfig("localhost", 5667, nsrv.EncryptXOR, EncryptKey, func(p *nsrv.DataPacket) error {
 		if p == nil {
 			return errors.New("packet is nil")
 		}
-		ch <- typeCastMessage(*p)
+		ch <- *p
 		return nil
 	})
 	nsrv.StartServer(cfg, true)
-}
-
-func typeCastMessage(msg interface{}) Message {
-	return msg.(Message)
 }

@@ -2,6 +2,7 @@ package nsca
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/rbeuque74/jagozzi/config"
@@ -9,6 +10,8 @@ import (
 	"github.com/rbeuque74/nsca"
 	log "github.com/sirupsen/logrus"
 )
+
+var replacer = strings.NewReplacer(",", "", "\"", "")
 
 // Consumer is the representation of a NSCA consumer
 type Consumer struct {
@@ -78,7 +81,7 @@ func (consumer Consumer) handle() {
 				State:   int16(result.Status),
 				Host:    result.Hostname,
 				Service: result.Checker.ServiceName(),
-				Message: result.Message,
+				Message: replacer.Replace(result.Message),
 				Status:  consumer.error,
 			}
 			log.Debugf("consumer: send message %+v", *msg)

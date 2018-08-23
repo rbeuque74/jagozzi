@@ -11,6 +11,7 @@ import (
 	"github.com/rbeuque74/jagozzi/consumers"
 	"github.com/rbeuque74/jagozzi/plugins"
 	"github.com/rbeuque74/nsca"
+	nsrv "github.com/tubemogul/nscatools"
 )
 
 type fakeChecker struct {
@@ -40,7 +41,7 @@ func (fc fakeChecker) Run(ctx context.Context) plugins.Result {
 
 func TestConsumerSendMessage(t *testing.T) {
 	// creating NSCA server
-	srvCh := make(chan Message, 10)
+	srvCh := make(chan nsrv.DataPacket, 10)
 	go NewNscaServerChannel(srvCh)
 
 	// sleeping a bit to let NSCA server start
@@ -53,20 +54,39 @@ func TestConsumerSendMessage(t *testing.T) {
 
 	consumer := New(*cfg)
 
+	var messages []string
+
+	var message = "example message"
 	res := plugins.Result{
 		Status:  plugins.STATE_CRITICAL,
-		Message: "example message",
+		Message: message,
 		Checker: fakeChecker{
 			t: t,
 		},
 	}
+	messages = append(messages, message)
 
 	consumer.MessageChannel() <- consumers.ResultWithHostname{
 		Result:   res,
 		Hostname: "hostname-example-1",
 	}
 
-	messageReceived := false
+	message = "message with unallowed characters, \"multiple ,characters\""
+	res = plugins.Result{
+		Status:  plugins.STATE_CRITICAL,
+		Message: message,
+		Checker: fakeChecker{
+			t: t,
+		},
+	}
+	messages = append(messages, "message with unallowed characters multiple characters")
+
+	consumer.MessageChannel() <- consumers.ResultWithHostname{
+		Result:   res,
+		Hostname: "hostname-example-1",
+	}
+
+	messageReceived := 0
 	for {
 		select {
 		case err := <-consumer.ErrorChannel():
@@ -75,11 +95,22 @@ func TestConsumerSendMessage(t *testing.T) {
 			} else {
 				t.Log("nsca send OK")
 			}
-			messageReceived = true
-			close(consumer.ExitChannel())
+			messageReceived += 1
+
+			msg := <-srvCh
+			if msg.PluginOutput != messages[0] {
+				t.Fatalf("message received incorrect: %s", msg.PluginOutput)
+				return
+			}
+
+			if messageReceived == 2 {
+				close(consumer.ExitChannel())
+			} else {
+				messages = messages[1:]
+			}
 		case <-time.After(time.Second):
 			t.Log("timed out")
-			if !messageReceived {
+			if messageReceived != 2 {
 				t.Fatal("timeout and message not received")
 			}
 			return
