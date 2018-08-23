@@ -97,8 +97,24 @@ func TestHTTPServerFails(t *testing.T) {
 	assert.Contains(t, result.Message, "critical timeout: request took")
 	assert.Contains(t, result.Message, "instead of 50ms")
 
+	// timeout
+	cfg["timeout"] = 65
+	genChecker, err = NewHTTPChecker(cfg, nil)
+	assert.Nilf(t, err, "http checker instantiation failed: %q", err)
+
+	checker = genChecker.(*HTTPChecker)
+	checker.client = &httpclient
+
+	ctxRun, cancelFunc1 = context.WithTimeout(context.Background(), time.Second)
+	defer cancelFunc1()
+
+	result = checker.Run(ctxRun)
+	assert.Equal(t, plugins.STATE_CRITICAL, result.Status)
+	assert.Contains(t, result.Message, "critical timeout: request took 65ms instead of 50ms")
+
 	// bad status code
 	cfg["code"] = 400
+	cfg["timeout"] = 1000
 	genChecker, err = NewHTTPChecker(cfg, nil)
 	assert.Nilf(t, err, "http checker instantiation failed: %q", err)
 

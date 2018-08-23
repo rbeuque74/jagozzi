@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"time"
 
@@ -57,9 +58,6 @@ func (res result) Error() error {
 
 // Run is performing the checker protocol
 func (c *HTTPChecker) Run(ctx context.Context) plugins.Result {
-	httpCtx, cancel := context.WithTimeout(ctx, c.cfg.Timeout)
-	defer cancel()
-
 	model := result{
 		Cfg:    c.cfg,
 		Result: plugins.STATE_CRITICAL,
@@ -72,17 +70,24 @@ func (c *HTTPChecker) Run(ctx context.Context) plugins.Result {
 		err = fmt.Errorf(plugins.RenderError(c.cfg.templates.ErrNewHTTPRequest, model))
 		return plugins.ResultFromError(c, err, "")
 	}
-	req = req.WithContext(httpCtx)
+	req = req.WithContext(ctx)
 
 	model.Request = *req
 
 	duration := time.Now()
-	client := http.DefaultClient
+	client := &http.Client{}
 	if c.client != nil {
 		client = c.client
 	}
+	c.client.Timeout = c.cfg.Timeout
 	resp, err := client.Do(req)
 	if err != nil {
+		if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+			model.Err = err
+			model.ElapsedTime = c.cfg.Timeout
+			err = fmt.Errorf(plugins.RenderError(c.cfg.templates.ErrTimeoutCritical, model))
+			return plugins.ResultFromError(c, err, "")
+		}
 		model.Err = err
 		err = fmt.Errorf(plugins.RenderError(c.cfg.templates.ErrRequest, model))
 		return plugins.ResultFromError(c, err, "")
