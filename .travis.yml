@@ -4,6 +4,11 @@ sudo: false
 
 go:
 - "1.10.x"
+- "1.11rc2"
+
+jobs:
+  allow_failures:
+    - go: "1.11rc2"
 
 env:
   - DEP_VERSION="0.5.0" SUPERVISOR_VERSION="0.5"
