@@ -79,7 +79,7 @@ func (c *HTTPChecker) Run(ctx context.Context) plugins.Result {
 	if c.client != nil {
 		client = c.client
 	}
-	c.client.Timeout = c.cfg.Timeout
+	client.Timeout = c.cfg.Timeout
 	resp, err := client.Do(req)
 	if err != nil {
 		if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
