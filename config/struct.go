@@ -47,6 +47,7 @@ type rawConsumerConfiguration struct {
 	RawTimeout int64  `json:"timeout"`
 	Encryption int64  `json:"encryption"`
 	Key        string `json:"key"`
+	Instances  int64  `json:"instances"`
 }
 
 // UnmarshalJSON explicits some variables from configuration file to proper Golang type

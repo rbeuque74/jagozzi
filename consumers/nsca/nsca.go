@@ -86,13 +86,14 @@ func (consumer Consumer) handle() {
 			}
 			log.Debugf("consumer: send message %+v", *msg)
 
-			afterTwoSecs := time.After(2 * time.Second)
+			afterTwoSecs := time.NewTimer(2 * time.Second)
 			select {
 			case consumer.nscaMsg <- msg:
-				continue
-			case <-afterTwoSecs:
+				afterTwoSecs.Stop()
+			case <-afterTwoSecs.C:
 				log.Warnf("consumer: timeout to push message to consumer message channel")
 			case <-consumer.exit:
+				afterTwoSecs.Stop()
 				return
 			}
 		}
