@@ -43,8 +43,10 @@ func New(cfg config.ConsumerConfiguration) Consumer {
 		NoKeepAlive:      true,
 	}
 
-	log.Infof("consumer: starting NSCA server to %s:%d", cfg.Server, cfg.Port)
-	go nsca.RunEndpoint(serv, exitChannel, nscaMessageChannel)
+	log.Infof("consumer: starting %d NSCA server to %s:%d", cfg.Instances, cfg.Server, cfg.Port)
+	for i := int64(0); i < cfg.Instances; i++ {
+		go nsca.RunEndpoint(serv, exitChannel, nscaMessageChannel)
+	}
 
 	consumer := Consumer{
 		messages: messagesChannel,
